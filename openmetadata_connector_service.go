@@ -13,9 +13,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
+	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
 	api "github.com/fybrik/datacatalog-go/go"
 )
@@ -73,6 +76,24 @@ func (s *ApacheApiService) DeleteAsset(ctx context.Context, xRequestDatacatalogC
 
 // GetAssetInfo - This REST API gets data asset information from the data catalog configured in fybrik for the data sets indicated in FybrikApplication yaml
 func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalogCred string, getAssetRequest api.GetAssetRequest) (api.ImplResponse, error) {
+	conf := client.NewConfiguration()
+	c := client.NewAPIClient(conf)
+
+	assetID := getAssetRequest.AssetID
+
+	fields := "tableConstraints,tablePartition,usageSummary,owner,profileSample,customMetrics,tags,followers,joins,sampleData,viewDefinition,tableProfile,location,tableQueries,dataModel,tests" // string | Fields requested in the returned resource (optional)
+	include := "non-deleted"                                                                                                                                                                     // string | Include all, deleted, or non-deleted entities. (optional) (default to "non-deleted")
+
+	resp, r, err := c.TablesApi.GetByName5(ctx, assetID).Fields(fields).Include(include).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetByName5``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return api.Response(400, nil), err
+	}
+
+	ret := &models.GetAssetResponse{}
+	ret.Credentials = resp
+
 	// TODO - update GetAssetInfo with the required logic for this service method.
 	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
@@ -82,7 +103,7 @@ func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalog
 	//TODO: Uncomment the next line to return response Response(400, {}) or use other options such as http.Ok ...
 	//return Response(400, nil),nil
 
-	return api.Response(http.StatusNotImplemented, nil), errors.New("GetAssetInfo method not implemented")
+	return api.Response(200, ret), nil
 }
 
 // UpdateAsset - This REST API updates data asset information in the data catalog configured in fybrik

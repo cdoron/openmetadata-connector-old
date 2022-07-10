@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/fybrik/datacatalog-go-client v0.0.0-00010101000000-000000000000 // indirect
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -23,3 +24,5 @@ require (
 replace github.com/fybrik/datacatalog-go => ./api
 
 replace github.com/fybrik/datacatalog-go-models => ./models
+
+replace github.com/fybrik/datacatalog-go-client => ./client

@@ -4,6 +4,7 @@ GROUP_ID := $(shell id -g)
 GIT_USER_ID := fybrik
 GIT_REPO_ID := datacatalog-go
 GIT_REPO_ID_MODELS := datacatalog-go-models
+GIT_REPO_ID_CLIENT := datacatalog-go-client
 
 DOCKER_HOSTNAME ?= ghcr.io
 DOCKER_NAMESPACE ?= cdoron
@@ -55,6 +56,14 @@ generate-code:
            -o /local/models \
            -i /local/fybrik/connectors/api/datacatalog.spec.yaml
 	rm -Rf fybrik
+	docker run --rm \
+           -v ${PWD}:/local \
+           -u "${USER_ID}:${GROUP_ID}" \
+           openapitools/openapi-generator-cli generate -g go \
+           --git-user-id=${GIT_USER_ID} \
+           --git-repo-id=${GIT_REPO_ID_CLIENT} \
+           -o /local/client \
+           -i /local/client-swagger/swagger.json
 
 patch:
 	sed -i 's/\t"github.com\/gorilla\/mux"//' api/go/api_default.go
