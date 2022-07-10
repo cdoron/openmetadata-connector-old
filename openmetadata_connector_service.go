@@ -12,16 +12,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
+	"net/http"
 	"strconv"
 
-	b64 "encoding/base64"
-
-	api "github.com/fybrik/datacatalog-go/go"
 	models "github.com/fybrik/datacatalog-go-models"
-	"github.com/go-resty/resty/v2"
+	api "github.com/fybrik/datacatalog-go/go"
 )
 
 type ApacheApiService struct {
@@ -39,261 +35,72 @@ func NewApacheApiService(conf map[interface{}]interface{}) OpenMetadataApiServic
 		conf["openmetadata_password"].(string)}
 }
 
-// Given the body of the POST response, extract the guid of the created entity
-func extract_asset_id_from_body(body []byte) (assetId string, err error) {
-
-	defer func() {
-		if r := recover(); r != nil {
-			err = r.(error)
-		}
-	}()
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return "", errors.New("Malformed response from Apache OpenMetadata")
-	}
-
-	if innerMap, ok := result["mutatedEntities"]; ok {
-		assetId = innerMap.(map[string]interface{})["CREATE"].([]interface{})[0].(map[string]interface{})["guid"].(string)
-		return assetId, nil
-	}
-
-	return "", nil
-}
-
-// Given the body of the POST response, extract the 'metadata' field which we added to the customAttributes.
-// Also, extract the the 'qualifiedName' and check the status to determine if this entity is deleted
-func extract_metadata_from_body(body []byte) (metadata string, qualifiedName string, deleted bool, err error) {
-
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Malformed response from Apache OpenMetadata")
-			err = r.(error)
-		}
-	}()
-
-	var result map[string]interface{}
-	json.Unmarshal(body, &result)
-	metadata = result["entity"].(map[string]interface{})["customAttributes"].(map[string]interface{})["metadata"].(string)
-	qualifiedName = result["entity"].(map[string]interface{})["attributes"].(map[string]interface{})["qualifiedName"].(string)
-	deleted = result["entity"].(map[string]interface{})["status"].(string) == "DELETED"
-
-	return metadata, qualifiedName, deleted, err
-}
-
-// Send a POST request to OpenMetadata to create or modify an entity
-func (s *ApacheApiService) writeAssetInfoToOpenMetadata(client *resty.Client, body string) ([]byte, int, error) {
-	resp, err := client.R().
-		SetBasicAuth(s.username, s.password).
-		SetBody(body).
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Accept", "application/json").
-		Post("http://" + s.hostname + ":" + s.port + "/api/openmetadata/v2/entity")
-
-	if err != nil {
-		return nil, 500, err
-	}
-
-	if resp.StatusCode() != 200 {
-		return nil, resp.StatusCode(), errors.New("Got " + strconv.Itoa(resp.StatusCode()) + " from OpenMetadata server")
-	}
-
-	return resp.Body(), 200, nil
-}
-
-// Given qualifiedName, query whether the entity already exists. Used by createAsset()
-func (s *ApacheApiService) checkIfAssetExists(client *resty.Client, qualifiedName string) (bool, int, error) {
-	resp, err := client.R().
-		SetBasicAuth(s.username, s.password).
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Accept", "application/json").
-		SetQueryParam("attr_0:qualifiedName", qualifiedName).
-		Get("http://" + s.hostname + ":" + s.port + "/api/openmetadata/v2/entity/bulk/uniqueAttribute/type/Asset")
-
-	if err != nil {
-		return false, 500, err
-	}
-
-	if resp.StatusCode() != 200 {
-		return false, resp.StatusCode(), errors.New("Got " + strconv.Itoa(resp.StatusCode()) + " from OpenMetadata server")
-	}
-	var result map[string]interface{}
-	json.Unmarshal(resp.Body(), &result)
-
-	if len(result) > 0 {
-		return true, 200, nil
-	} else {
-		return false, 200, nil
-	}
-}
-
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik
 func (s *ApacheApiService) CreateAsset(ctx context.Context,
 	xRequestDatacatalogWriteCred string,
 	createAssetRequest models.CreateAssetRequest) (api.ImplResponse, error) {
+	// TODO - update CreateAsset with the required logic for this service method.
+	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	assetName := createAssetRequest.DestinationCatalogID + "/" + *createAssetRequest.DestinationAssetID
+	//TODO: Uncomment the next line to return response Response(201, CreateAssetResponse{}) or use other options such as http.Ok ...
+	//return Response(201, CreateAssetResponse{}), nil
 
-	client := resty.New()
-	exists, statusCode, err := s.checkIfAssetExists(client, assetName)
-	if err != nil {
-		return api.Response(statusCode, nil), err
-	}
-	if exists {
-		return api.Response(400, nil), errors.New("Asset already exists")
-	}
+	//TODO: Uncomment the next line to return response Response(400, {}) or use other options such as http.Ok ...
+	//return Response(400, nil),nil
 
-	bodyJson, err := json.Marshal(createAssetRequest)
-
-	// encode the body and place the encoded string in the 'metadata' customAttributes field
-	metadata := b64.StdEncoding.EncodeToString(bodyJson)
-
-	body := `
-	{
-		"entity": {
-			"typeName": "Asset",
-			"attributes": {
-				"qualifiedName": "` + assetName + `",
-				"name": "` + assetName + `"
-			},
-			"customAttributes": {
-				"metadata": "` + metadata + `"
-			}
-		}
-	}`
-
-	respBody, statusCode, err := s.writeAssetInfoToOpenMetadata(client, body)
-	if err != nil {
-		return api.Response(statusCode, nil), err
-	}
-
-	assetID, err := extract_asset_id_from_body(respBody)
-	if err != nil {
-		return api.Response(400, nil), err
-	}
-
-	return api.Response(200, api.CreateAssetResponse{assetID}), nil
+	return api.Response(http.StatusNotImplemented, nil), errors.New("CreateAsset method not implemented")
 }
 
 // DeleteAsset - This REST API deletes data asset
 func (s *ApacheApiService) DeleteAsset(ctx context.Context, xRequestDatacatalogCred string, deleteAssetRequest api.DeleteAssetRequest) (api.ImplResponse, error) {
-	assetID := deleteAssetRequest.AssetID
+	// TODO - update DeleteAsset with the required logic for this service method.
+	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	client := resty.New()
+	//TODO: Uncomment the next line to return response Response(200, DeleteAssetResponse{}) or use other options such as http.Ok ...
+	//return Response(200, DeleteAssetResponse{}), nil
 
-	resp, err := client.R().
-		SetBasicAuth(s.username, s.password).
-		Delete("http://" + s.hostname + ":" + s.port + "/api/openmetadata/v2/entity/guid/" + assetID)
+	//TODO: Uncomment the next line to return response Response(400, {}) or use other options such as http.Ok ...
+	//return Response(400, nil),nil
 
-	if err != nil {
-		return api.Response(500, nil), err
-	}
+	//TODO: Uncomment the next line to return response Response(404, {}) or use other options such as http.Ok ...
+	//return Response(404, nil),nil
 
-	if resp.StatusCode() != 200 {
-		return api.Response(resp.StatusCode(), errors.New("Got "+strconv.Itoa(resp.StatusCode())+" from OpenMetadata server")), nil
-	}
+	//TODO: Uncomment the next line to return response Response(401, {}) or use other options such as http.Ok ...
+	//return Response(401, nil),nil
 
-	return api.Response(200, api.DeleteAssetResponse{"Deletion Successful"}), nil
-}
-
-// Used by both GetAssetInfo and UpdateAsset. UpdateAsset uses it to fail update requests to a non-existant entity
-func (s *ApacheApiService) getAssetInfoFromOpenMetadata(client *resty.Client, assetID string) (map[string]interface{}, string, int, error) {
-	resp, err := client.R().
-		SetBasicAuth(s.username, s.password).
-		Get("http://" + s.hostname + ":" + s.port + "/api/openmetadata/v2/entity/guid/" + assetID)
-
-	if err != nil {
-		return nil, "", 500, err
-	}
-
-	if resp.StatusCode() != 200 {
-		return nil, "", resp.StatusCode(), errors.New("Got " + strconv.Itoa(resp.StatusCode()) + " from OpenMetadata server")
-	}
-
-	metadata, qualifiedName, deleted, err := extract_metadata_from_body(resp.Body())
-	if err != nil {
-		return nil, "", 400, err
-	}
-
-	if deleted {
-		return nil, "", 404, errors.New("Asset already deleted")
-	}
-
-	assetInfo, err := b64.StdEncoding.DecodeString(metadata)
-	if err != nil {
-		return nil, "", 400, err
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(assetInfo, &result)
-	if err != nil {
-		return nil, "", 400, errors.New("Failed to unmarshal asset info")
-	}
-
-	return result, qualifiedName, 200, nil
+	return api.Response(http.StatusNotImplemented, nil), errors.New("DeleteAsset method not implemented")
 }
 
 // GetAssetInfo - This REST API gets data asset information from the data catalog configured in fybrik for the data sets indicated in FybrikApplication yaml
 func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalogCred string, getAssetRequest api.GetAssetRequest) (api.ImplResponse, error) {
-	assetID := getAssetRequest.AssetID
-	client := resty.New()
-	result, _, statusCode, err := s.getAssetInfoFromOpenMetadata(client, assetID)
-	if err != nil {
-		return api.Response(statusCode, nil), err
-	}
-	return api.Response(200, result), nil
+	// TODO - update GetAssetInfo with the required logic for this service method.
+	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+
+	//TODO: Uncomment the next line to return response Response(200, GetAssetResponse{}) or use other options such as http.Ok ...
+	//return Response(200, GetAssetResponse{}), nil
+
+	//TODO: Uncomment the next line to return response Response(400, {}) or use other options such as http.Ok ...
+	//return Response(400, nil),nil
+
+	return api.Response(http.StatusNotImplemented, nil), errors.New("GetAssetInfo method not implemented")
 }
 
 // UpdateAsset - This REST API updates data asset information in the data catalog configured in fybrik
 func (s *ApacheApiService) UpdateAsset(ctx context.Context, xRequestDatacatalogUpdateCred string, updateAssetRequest api.UpdateAssetRequest) (api.ImplResponse, error) {
-	assetID := updateAssetRequest.AssetID
-	client := resty.New()
+	// TODO - update UpdateAsset with the required logic for this service method.
+	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
-	// get the current metadata associated with the asset.
-	// determine qualifiedName of asset. Also, fail if asset does not exist.
-	result, qualifiedName, statusCode, err := s.getAssetInfoFromOpenMetadata(client, assetID)
-	if err != nil {
-		return api.Response(statusCode, nil), err
-	}
+	//TODO: Uncomment the next line to return response Response(200, UpdateAssetResponse{}) or use other options such as http.Ok ...
+	//return Response(200, UpdateAssetResponse{}), nil
 
-	if updateAssetRequest.Name != "" {
-		result["resourceMetadata"].(map[string]interface{})["name"] = updateAssetRequest.Name
-	}
+	//TODO: Uncomment the next line to return response Response(400, {}) or use other options such as http.Ok ...
+	//return Response(400, nil),nil
 
-	if updateAssetRequest.Owner != "" {
-		result["resourceMetadata"].(map[string]interface{})["owner"] = updateAssetRequest.Owner
-	}
+	//TODO: Uncomment the next line to return response Response(404, {}) or use other options such as http.Ok ...
+	//return Response(404, nil),nil
 
-	if updateAssetRequest.Columns != nil {
-		result["resourceMetadata"].(map[string]interface{})["columns"] = updateAssetRequest.Columns
-	}
+	//TODO: Uncomment the next line to return response Response(401, {}) or use other options such as http.Ok ...
+	//return Response(401, nil),nil
 
-	if updateAssetRequest.Tags != nil {
-		result["resourceMetadata"].(map[string]interface{})["tags"] = updateAssetRequest.Tags
-	}
-	jsonString, err := json.Marshal(result)
-
-	metadata := b64.StdEncoding.EncodeToString(jsonString)
-
-	body := `
-	{
-		"entity": {
-			"typeName": "Asset",
-			"guid": "` + assetID + `",
-			"attributes": {
-				"qualifiedName": "` + qualifiedName + `",
-				"name": "` + qualifiedName + `"
-			},
-			"customAttributes": {
-				"metadata": "` + metadata + `"
-			}
-		}
-	}`
-	respBody, statusCode, err := s.writeAssetInfoToOpenMetadata(client, body)
-	if err != nil {
-		return api.Response(statusCode, nil), err
-	}
-	fmt.Println(string(respBody))
-
-	return api.Response(200, api.UpdateAssetResponse{"Asset Update Successful"}), nil
+	return api.Response(http.StatusNotImplemented, nil), errors.New("UpdateAsset method not implemented")
 }
