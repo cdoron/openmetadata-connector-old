@@ -26,7 +26,7 @@ import (
 // RunCmd defines the command for running the connector
 func RunCmd() *cobra.Command {
 	configFile := "/etc/conf/conf.yaml"
-	port := 8080
+	port := 8081
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run the connector",
