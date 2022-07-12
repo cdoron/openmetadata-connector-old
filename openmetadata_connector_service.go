@@ -97,6 +97,8 @@ func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalog
 
 	ret := &models.GetAssetResponse{}
 	ret.Details.Connection.Name = serviceType
+	dataFormat := "SQL"
+	ret.Details.DataFormat = &dataFormat
 
 	respService, r, err := c.ServicesApi.Get19(ctx, respAsset.Service.Id).Execute()
 	if err != nil {
