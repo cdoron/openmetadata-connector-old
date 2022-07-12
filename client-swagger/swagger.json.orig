@@ -13926,10 +13926,10 @@
             "type" : "string"
           },
           "newValue" : {
-            "type" : "string"
+            "type" : "object"
           },
           "oldValue" : {
-            "type" : "string"
+            "type" : "object"
           }
         }
       },

@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
@@ -81,27 +82,51 @@ func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalog
 
 	assetID := getAssetRequest.AssetID
 
-	fields := "tableConstraints,tablePartition,usageSummary,owner,profileSample,customMetrics,tags,followers,joins,sampleData,viewDefinition,tableProfile,location,tableQueries,dataModel,tests" // string | Fields requested in the returned resource (optional)
-	include := "non-deleted"                                                                                                                                                                     // string | Include all, deleted, or non-deleted entities. (optional) (default to "non-deleted")
+	//fields := "tableConstraints,tablePartition,usageSummary,owner,profileSample,customMetrics,tags,followers,joins,sampleData,viewDefinition,tableProfile,location,tableQueries,dataModel,tests" // string | Fields requested in the returned resource (optional)
+	fields := "tags"
+	include := "non-deleted" // string | Include all, deleted, or non-deleted entities. (optional) (default to "non-deleted")
+	respAsset, r, err := c.TablesApi.GetByName5(ctx, assetID).Fields(fields).Include(include).Execute()
 
-	resp, r, err := c.TablesApi.GetByName5(ctx, assetID).Fields(fields).Include(include).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetByName5``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(400, nil), err
 	}
 
+	serviceType := strings.ToLower(*respAsset.ServiceType)
+
 	ret := &models.GetAssetResponse{}
-	ret.Credentials = resp
+	ret.Details.Connection.Name = serviceType
 
-	// TODO - update GetAssetInfo with the required logic for this service method.
-	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	respService, r, err := c.ServicesApi.Get19(ctx, respAsset.Service.Id).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetByName5``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return api.Response(400, nil), err
+	}
 
-	//TODO: Uncomment the next line to return response Response(200, GetAssetResponse{}) or use other options such as http.Ok ...
-	//return Response(200, GetAssetResponse{}), nil
+	config := respService.Connection.GetConfig()
 
-	//TODO: Uncomment the next line to return response Response(400, {}) or use other options such as http.Ok ...
-	//return Response(400, nil),nil
+	additionalProperties := make(map[string]interface{})
+	additionalProperties[serviceType] = config
+	ret.Details.Connection.AdditionalProperties = additionalProperties
+	ret.ResourceMetadata.Name = respAsset.FullyQualifiedName
+
+	ret.Credentials = config["username"].(string) + ":" + config["password"].(string)
+
+	for _, s := range respAsset.Columns {
+		tags := make(map[string]interface{})
+		for _, t := range s.Tags {
+			tags[t.TagFQN] = "true"
+		}
+		ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name, Tags: tags})
+	}
+
+	tags := make(map[string]interface{})
+	for _, s := range respAsset.Tags {
+		tags[s.TagFQN] = "true"
+	}
+	ret.ResourceMetadata.Tags = tags
 
 	return api.Response(200, ret), nil
 }
