@@ -43,6 +43,60 @@ func NewApacheApiService(conf map[interface{}]interface{}) OpenMetadataApiServic
 func (s *ApacheApiService) CreateAsset(ctx context.Context,
 	xRequestDatacatalogWriteCred string,
 	createAssetRequest models.CreateAssetRequest) (api.ImplResponse, error) {
+
+	if createAssetRequest.Details.Connection.Name != "mysql" {
+		return api.Response(400, nil), errors.New("currently, we only support the mysql connection")
+	}
+
+	conf := client.NewConfiguration()
+	c := client.NewAPIClient(conf)
+
+	// Let us begin with checking whether the database service already exists
+	// XXXXXXXXX
+
+	// If does not exist, let us create database service
+	connection := client.NewDatabaseConnection()
+	connection.SetConfig(createAssetRequest.Details.GetConnection().AdditionalProperties["mysql"].(map[string]interface{}))
+	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID, "Mysql")
+
+	createDatabaseService, r, err := c.ServicesApi.Create16(ctx).CreateDatabaseService(*createDatabaseService).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Create16``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return api.Response(r.StatusCode, nil), err
+	}
+
+	// get database service ID by name
+	databaseService, r, err := c.ServicesApi.GetByName15(ctx, createDatabaseService.Name).Execute()
+
+	// Next let us create an ingestion pipeline
+	sourceConfig := *client.NewSourceConfig()
+	sourceConfig.SetConfig(map[string]interface{}{"type": "DatabaseMetadata"})
+	newCreateIngestionPipeline := *client.NewCreateIngestionPipeline(*&client.AirflowConfig{},
+		createAssetRequest.DestinationCatalogID+"-"+*createAssetRequest.DestinationAssetID+"-pipeline",
+		"metadata", *client.NewEntityReference(databaseService.Id, "databaseService"),
+		sourceConfig)
+
+	createIngestionPipeline, r, err := c.IngestionPipelinesApi.Create17(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Create16``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return api.Response(r.StatusCode, nil), err
+	}
+
+	ingestionFQN := *createIngestionPipeline.Service.FullyQualifiedName + "." + createIngestionPipeline.Name
+	// get ingestion pipeline ID by name
+	ingestionPipeline, r, err := c.IngestionPipelinesApi.GetByName16(ctx, ingestionFQN).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.GetByName16``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return api.Response(r.StatusCode, nil), err
+	}
+
+	// Let us deploy the ingestion pipeline
+	_, r, err = c.IngestionPipelinesApi.DeployIngestion(ctx, *ingestionPipeline.Id).Execute()
+	_, r, err = c.IngestionPipelinesApi.TriggerIngestion(ctx, *ingestionPipeline.Id).Execute()
+
 	// TODO - update CreateAsset with the required logic for this service method.
 	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
