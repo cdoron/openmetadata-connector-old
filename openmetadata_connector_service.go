@@ -73,7 +73,7 @@ func (s *ApacheApiService) CreateAsset(ctx context.Context,
 	sourceConfig := *client.NewSourceConfig()
 	sourceConfig.SetConfig(map[string]interface{}{"type": "DatabaseMetadata"})
 	newCreateIngestionPipeline := *client.NewCreateIngestionPipeline(*&client.AirflowConfig{},
-		createAssetRequest.DestinationCatalogID+"-"+*createAssetRequest.DestinationAssetID+"-pipeline",
+		*createAssetRequest.DestinationAssetID+"-pipeline",
 		"metadata", *client.NewEntityReference(databaseService.Id, "databaseService"),
 		sourceConfig)
 
@@ -84,7 +84,7 @@ func (s *ApacheApiService) CreateAsset(ctx context.Context,
 		return api.Response(r.StatusCode, nil), err
 	}
 
-	ingestionFQN := *createIngestionPipeline.Service.FullyQualifiedName + "." + createIngestionPipeline.Name
+	ingestionFQN := *createIngestionPipeline.Service.FullyQualifiedName + ".\"" + createIngestionPipeline.Name + "\""
 	// get ingestion pipeline ID by name
 	ingestionPipeline, r, err := c.IngestionPipelinesApi.GetByName16(ctx, ingestionFQN).Execute()
 	if err != nil {
@@ -94,8 +94,18 @@ func (s *ApacheApiService) CreateAsset(ctx context.Context,
 	}
 
 	// Let us deploy the ingestion pipeline
-	_, r, err = c.IngestionPipelinesApi.DeployIngestion(ctx, *ingestionPipeline.Id).Execute()
-	_, r, err = c.IngestionPipelinesApi.TriggerIngestion(ctx, *ingestionPipeline.Id).Execute()
+	ingestionPipeline, r, err = c.IngestionPipelinesApi.DeployIngestion(ctx, *ingestionPipeline.Id).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.DeployIngestion``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return api.Response(r.StatusCode, nil), err
+	}
+	ingestionPipeline, r, err = c.IngestionPipelinesApi.TriggerIngestion(ctx, *ingestionPipeline.Id).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.TriggerIngestion``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return api.Response(r.StatusCode, nil), err
+	}
 
 	// TODO - update CreateAsset with the required logic for this service method.
 	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.

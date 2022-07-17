@@ -1,0 +1,47 @@
+{
+  "destinationCatalogID": "openmetadata",
+  "destinationAssetID": "default.testDB.Persons",
+  "credentials": "root:my-secret-pw",
+  "details": {
+    "connection": {
+      "mysql": {
+        "databaseSchema": "testDB",
+        "hostPort": "172.16.240.1:1000",
+        "password": "my-secret-pw",
+        "scheme": "mysql+pymysql",
+        "username": "root"
+      },
+      "name": "mysql"
+    },
+    "dataFormat": "SQL"
+  },
+  "resourceMetadata": {
+    "columns": [
+      {
+        "name": "PersonID"
+      },
+      {
+        "name": "LastName"
+      },
+      {
+        "name": "FirstName",
+        "tags": {
+          "PII.NonSensitive": "true"
+        }
+      },
+      {
+        "name": "Address"
+      },
+      {
+        "name": "City",
+        "tags": {
+          "PII.Sensitive": "true"
+        }
+      }
+    ],
+    "name": "super cool table",
+    "tags": {
+      "PersonalData.SpecialCategory": "true"
+    }
+  }
+}
