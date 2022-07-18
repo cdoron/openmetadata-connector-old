@@ -18,6 +18,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
@@ -37,6 +38,28 @@ func NewApacheApiService(conf map[interface{}]interface{}) OpenMetadataApiServic
 		strconv.Itoa(conf["openmetadata_port"].(int)),
 		conf["openmetadata_username"].(string),
 		conf["openmetadata_password"].(string)}
+}
+
+func waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) bool {
+	count := 0
+	for {
+		fmt.Println("running GetByName5")
+		_, _, err := c.TablesApi.GetByName5(ctx, name).Execute()
+		if err == nil {
+			fmt.Println("Found the table!")
+			return true
+		} else {
+			fmt.Println("Could not find the table. Let's try again")
+		}
+
+		if count == 10 {
+			break
+		}
+		count++
+		time.Sleep(500 * time.Millisecond)
+	}
+	fmt.Println("Too many retries. Could not find table. Giving up")
+	return false
 }
 
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik
@@ -107,16 +130,14 @@ func (s *ApacheApiService) CreateAsset(ctx context.Context,
 		return api.Response(r.StatusCode, nil), err
 	}
 
-	// TODO - update CreateAsset with the required logic for this service method.
-	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	assetID := *createIngestionPipeline.Service.FullyQualifiedName + "." + *createAssetRequest.DestinationAssetID
+	success := waitUntilAssetIsDiscovered(ctx, c, assetID)
 
-	//TODO: Uncomment the next line to return response Response(201, CreateAssetResponse{}) or use other options such as http.Ok ...
-	//return Response(201, CreateAssetResponse{}), nil
-
-	//TODO: Uncomment the next line to return response Response(400, {}) or use other options such as http.Ok ...
-	//return Response(400, nil),nil
-
-	return api.Response(http.StatusNotImplemented, nil), errors.New("CreateAsset method not implemented")
+	if success {
+		return api.Response(201, api.CreateAssetResponse{}), nil
+	} else {
+		return api.Response(http.StatusNotImplemented, nil), errors.New("Could not find table " + assetID)
+	}
 }
 
 // DeleteAsset - This REST API deletes data asset
@@ -150,7 +171,6 @@ func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalog
 	fields := "tags"
 	include := "non-deleted" // string | Include all, deleted, or non-deleted entities. (optional) (default to "non-deleted")
 	respAsset, r, err := c.TablesApi.GetByName5(ctx, assetID).Fields(fields).Include(include).Execute()
-
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetByName5``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -166,7 +186,7 @@ func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalog
 
 	respService, r, err := c.ServicesApi.Get19(ctx, respAsset.Service.Id).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetByName5``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Get19``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(400, nil), err
 	}
