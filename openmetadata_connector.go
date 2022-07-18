@@ -12,8 +12,8 @@ import (
 	"net/http"
 	"strings"
 
-	api "github.com/fybrik/datacatalog-go/go"
 	models "github.com/fybrik/datacatalog-go-models"
+	api "github.com/fybrik/datacatalog-go/go"
 )
 
 // DefaultApiController binds http requests to an api service and writes the service results to the http response
@@ -34,7 +34,7 @@ func WithDefaultApiErrorHandler(h api.ErrorHandler) DefaultApiOption {
 }
 
 // NewDefaultApiController creates a default api controller
-func NewApacheApiController(s OpenMetadataApiServicer, opts ...DefaultApiOption) api.Router {
+func NewOpenMetadataApiController(s OpenMetadataApiServicer, opts ...DefaultApiOption) api.Router {
 	controller := &DefaultApiController{
 		service:      s,
 		errorHandler: api.DefaultErrorHandler,

@@ -48,8 +48,8 @@ func RunCmd() *cobra.Command {
 
 			log.Printf("Server started")
 
-			DefaultApiService := NewApacheApiService(conf)
-			DefaultApiController := NewApacheApiController(DefaultApiService)
+			DefaultApiService := NewOpenMetadataApiService(conf)
+			DefaultApiController := NewOpenMetadataApiController(DefaultApiService)
 
 			router := api.NewRouter(DefaultApiController)
 

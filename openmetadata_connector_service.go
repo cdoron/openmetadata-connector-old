@@ -6,7 +6,7 @@
  */
 
 // CHANGE-FROM-GENERATED-CODE: All code in this file is different from auto-generated code.
-// This code is specific for working with Apache OpenMetadata
+// This code is specific for working with OpenMetadata
 
 package main
 
@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,19 +24,13 @@ import (
 	api "github.com/fybrik/datacatalog-go/go"
 )
 
-type ApacheApiService struct {
-	hostname string
-	port     string
-	username string
-	password string
+type OpenMetadataApiService struct {
+	Endpoint string
 }
 
-// NewApacheApiService creates a new api service
-func NewApacheApiService(conf map[interface{}]interface{}) OpenMetadataApiServicer {
-	return &ApacheApiService{conf["openmetadata_hostname"].(string),
-		strconv.Itoa(conf["openmetadata_port"].(int)),
-		conf["openmetadata_username"].(string),
-		conf["openmetadata_password"].(string)}
+// NewOpenMetadataApiService creates a new api service
+func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApiServicer {
+	return &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string)}
 }
 
 func waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) bool {
@@ -63,16 +56,22 @@ func waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name s
 }
 
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik
-func (s *ApacheApiService) CreateAsset(ctx context.Context,
+func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	xRequestDatacatalogWriteCred string,
 	createAssetRequest models.CreateAssetRequest) (api.ImplResponse, error) {
 
 	if createAssetRequest.Details.Connection.Name != "mysql" {
-		return api.Response(400, nil), errors.New("currently, we only support the mysql connection")
+		return api.Response(http.StatusBadRequest, nil), errors.New("currently, we only support the mysql connection")
 	}
 
-	conf := client.NewConfiguration()
-	c := client.NewAPIClient(conf)
+	conf := client.Configuration{Servers: client.ServerConfigurations{
+		{
+			URL:         s.Endpoint,
+			Description: "Endpoint URL",
+		},
+	},
+	}
+	c := client.NewAPIClient(&conf)
 
 	// Let us begin with checking whether the database service already exists
 	// XXXXXXXXX
@@ -134,14 +133,14 @@ func (s *ApacheApiService) CreateAsset(ctx context.Context,
 	success := waitUntilAssetIsDiscovered(ctx, c, assetID)
 
 	if success {
-		return api.Response(201, api.CreateAssetResponse{}), nil
+		return api.Response(201, api.CreateAssetResponse{AssetID: assetID}), nil
 	} else {
-		return api.Response(http.StatusNotImplemented, nil), errors.New("Could not find table " + assetID)
+		return api.Response(http.StatusBadRequest, nil), errors.New("Could not find table " + assetID)
 	}
 }
 
 // DeleteAsset - This REST API deletes data asset
-func (s *ApacheApiService) DeleteAsset(ctx context.Context, xRequestDatacatalogCred string, deleteAssetRequest api.DeleteAssetRequest) (api.ImplResponse, error) {
+func (s *OpenMetadataApiService) DeleteAsset(ctx context.Context, xRequestDatacatalogCred string, deleteAssetRequest api.DeleteAssetRequest) (api.ImplResponse, error) {
 	// TODO - update DeleteAsset with the required logic for this service method.
 	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 
@@ -161,7 +160,7 @@ func (s *ApacheApiService) DeleteAsset(ctx context.Context, xRequestDatacatalogC
 }
 
 // GetAssetInfo - This REST API gets data asset information from the data catalog configured in fybrik for the data sets indicated in FybrikApplication yaml
-func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalogCred string, getAssetRequest api.GetAssetRequest) (api.ImplResponse, error) {
+func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalogCred string, getAssetRequest api.GetAssetRequest) (api.ImplResponse, error) {
 	conf := client.NewConfiguration()
 	c := client.NewAPIClient(conf)
 
@@ -174,7 +173,7 @@ func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalog
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetByName5``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(400, nil), err
+		return api.Response(http.StatusBadRequest, nil), err
 	}
 
 	serviceType := strings.ToLower(*respAsset.ServiceType)
@@ -188,7 +187,7 @@ func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalog
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Get19``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(400, nil), err
+		return api.Response(http.StatusBadRequest, nil), err
 	}
 
 	config := respService.Connection.GetConfig()
@@ -218,7 +217,7 @@ func (s *ApacheApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalog
 }
 
 // UpdateAsset - This REST API updates data asset information in the data catalog configured in fybrik
-func (s *ApacheApiService) UpdateAsset(ctx context.Context, xRequestDatacatalogUpdateCred string, updateAssetRequest api.UpdateAssetRequest) (api.ImplResponse, error) {
+func (s *OpenMetadataApiService) UpdateAsset(ctx context.Context, xRequestDatacatalogUpdateCred string, updateAssetRequest api.UpdateAssetRequest) (api.ImplResponse, error) {
 	// TODO - update UpdateAsset with the required logic for this service method.
 	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 

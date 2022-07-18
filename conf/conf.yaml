@@ -1,5 +1,2 @@
 uuid: 12345678
-openmetadata_hostname: localhost
-openmetadata_port: 21000
-openmetadata_username: admin
-openmetadata_password: admin
+openmetadata_endpoint: "http://localhost:8585/api"
