@@ -25,15 +25,36 @@ import (
 )
 
 type OpenMetadataApiService struct {
-	Endpoint string
+	Endpoint        string
+	SleepIntervalMS int
+	NumRetries      int
 }
 
 // NewOpenMetadataApiService creates a new api service
 func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApiServicer {
-	return &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string)}
+	var SleepIntervalMS int
+	var NumRetries int
+
+	value, ok := conf["openmetadata_sleep_interval"]
+	if ok {
+		SleepIntervalMS = value.(int)
+	} else {
+		SleepIntervalMS = 500
+	}
+
+	value, ok = conf["openmetadata_num_retries"]
+	if ok {
+		NumRetries = value.(int)
+	} else {
+		NumRetries = 20
+	}
+
+	return &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
+		SleepIntervalMS: SleepIntervalMS,
+		NumRetries:      NumRetries}
 }
 
-func waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) bool {
+func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) bool {
 	count := 0
 	for {
 		fmt.Println("running GetByName5")
@@ -45,11 +66,11 @@ func waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name s
 			fmt.Println("Could not find the table. Let's try again")
 		}
 
-		if count == 10 {
+		if count == s.NumRetries {
 			break
 		}
 		count++
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(time.Duration(s.SleepIntervalMS) * time.Millisecond)
 	}
 	fmt.Println("Too many retries. Could not find table. Giving up")
 	return false
@@ -130,7 +151,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	}
 
 	assetID := *createIngestionPipeline.Service.FullyQualifiedName + "." + *createAssetRequest.DestinationAssetID
-	success := waitUntilAssetIsDiscovered(ctx, c, assetID)
+	success := s.waitUntilAssetIsDiscovered(ctx, c, assetID)
 
 	if success {
 		return api.Response(201, api.CreateAssetResponse{AssetID: assetID}), nil
