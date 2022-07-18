@@ -57,7 +57,7 @@ func (s *ApacheApiService) CreateAsset(ctx context.Context,
 	// If does not exist, let us create database service
 	connection := client.NewDatabaseConnection()
 	connection.SetConfig(createAssetRequest.Details.GetConnection().AdditionalProperties["mysql"].(map[string]interface{}))
-	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID, "Mysql")
+	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID+"-mysql", "Mysql")
 
 	createDatabaseService, r, err := c.ServicesApi.Create16(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 	if err != nil {
@@ -73,7 +73,7 @@ func (s *ApacheApiService) CreateAsset(ctx context.Context,
 	sourceConfig := *client.NewSourceConfig()
 	sourceConfig.SetConfig(map[string]interface{}{"type": "DatabaseMetadata"})
 	newCreateIngestionPipeline := *client.NewCreateIngestionPipeline(*&client.AirflowConfig{},
-		*createAssetRequest.DestinationAssetID+"-pipeline",
+		"pipeline-"+*createAssetRequest.DestinationAssetID,
 		"metadata", *client.NewEntityReference(databaseService.Id, "databaseService"),
 		sourceConfig)
 
