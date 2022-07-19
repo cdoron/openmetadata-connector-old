@@ -6771,7 +6771,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/CreateIngestionPipeline"
+                  "$ref" : "#/components/schemas/IngestionPipeline"
                 }
               }
             }

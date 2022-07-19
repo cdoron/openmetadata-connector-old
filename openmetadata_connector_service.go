@@ -117,18 +117,9 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		"metadata", *client.NewEntityReference(databaseService.Id, "databaseService"),
 		sourceConfig)
 
-	createIngestionPipeline, r, err := c.IngestionPipelinesApi.Create17(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
+	ingestionPipeline, r, err := c.IngestionPipelinesApi.Create17(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Create16``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(r.StatusCode, nil), err
-	}
-
-	ingestionFQN := *createIngestionPipeline.Service.FullyQualifiedName + ".\"" + createIngestionPipeline.Name + "\""
-	// get ingestion pipeline ID by name
-	ingestionPipeline, r, err := c.IngestionPipelinesApi.GetByName16(ctx, ingestionFQN).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.GetByName16``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.Create17``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(r.StatusCode, nil), err
 	}
@@ -147,11 +138,11 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		return api.Response(r.StatusCode, nil), err
 	}
 
-	assetID := *createIngestionPipeline.Service.FullyQualifiedName + "." + *createAssetRequest.DestinationAssetID
+	assetID := *ingestionPipeline.Service.FullyQualifiedName + "." + *createAssetRequest.DestinationAssetID
 	success := s.waitUntilAssetIsDiscovered(ctx, c, assetID)
 
 	if success {
-		return api.Response(201, api.CreateAssetResponse{AssetID: assetID}), nil
+		return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetID}), nil
 	} else {
 		return api.Response(http.StatusBadRequest, nil), errors.New("Could not find table " + assetID)
 	}
