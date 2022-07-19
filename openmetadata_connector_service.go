@@ -49,9 +49,19 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 		NumRetries = 20
 	}
 
-	return &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
+	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
 		SleepIntervalMS: SleepIntervalMS,
 		NumRetries:      NumRetries}
+
+	c := s.getOpenMetadataClient()
+
+	// Create Tag Category for Fybrik
+	c.TagsApi.CreateCategory(context.Background()).CreateTagCategory(*client.NewCreateTagCategory("Classification",
+		"Parent Category for all Fybrik labels", "Fybrik")).Execute()
+
+	// XXX When it is possible, we should use the API to create Custom Properties such as "geography"
+
+	return s
 }
 
 func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) bool {
@@ -76,6 +86,17 @@ func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context,
 	return false
 }
 
+func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
+	conf := client.Configuration{Servers: client.ServerConfigurations{
+		{
+			URL:         s.Endpoint,
+			Description: "Endpoint URL",
+		},
+	},
+	}
+	return client.NewAPIClient(&conf)
+}
+
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik
 func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	xRequestDatacatalogWriteCred string,
@@ -85,14 +106,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		return api.Response(http.StatusBadRequest, nil), errors.New("currently, we only support the mysql connection")
 	}
 
-	conf := client.Configuration{Servers: client.ServerConfigurations{
-		{
-			URL:         s.Endpoint,
-			Description: "Endpoint URL",
-		},
-	},
-	}
-	c := client.NewAPIClient(&conf)
+	c := s.getOpenMetadataClient()
 
 	// Let us begin with checking whether the database service already exists
 	// XXXXXXXXX
@@ -170,8 +184,7 @@ func (s *OpenMetadataApiService) DeleteAsset(ctx context.Context, xRequestDataca
 
 // GetAssetInfo - This REST API gets data asset information from the data catalog configured in fybrik for the data sets indicated in FybrikApplication yaml
 func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalogCred string, getAssetRequest api.GetAssetRequest) (api.ImplResponse, error) {
-	conf := client.NewConfiguration()
-	c := client.NewAPIClient(conf)
+	c := s.getOpenMetadataClient()
 
 	assetID := getAssetRequest.AssetID
 
