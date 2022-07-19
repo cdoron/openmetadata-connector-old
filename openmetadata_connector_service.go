@@ -102,15 +102,12 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	connection.SetConfig(createAssetRequest.Details.GetConnection().AdditionalProperties["mysql"].(map[string]interface{}))
 	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID+"-mysql", "Mysql")
 
-	createDatabaseService, r, err := c.ServicesApi.Create16(ctx).CreateDatabaseService(*createDatabaseService).Execute()
+	databaseService, r, err := c.ServicesApi.Create16(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Create16``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(r.StatusCode, nil), err
 	}
-
-	// get database service ID by name
-	databaseService, r, err := c.ServicesApi.GetByName15(ctx, createDatabaseService.Name).Execute()
 
 	// Next let us create an ingestion pipeline
 	sourceConfig := *client.NewSourceConfig()
