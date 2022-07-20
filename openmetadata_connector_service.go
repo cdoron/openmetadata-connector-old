@@ -30,6 +30,19 @@ type OpenMetadataApiService struct {
 	NumRetries      int
 }
 
+func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
+	c := s.getOpenMetadataClient()
+
+	// Create Tag Category for Fybrik
+	c.TagsApi.CreateCategory(context.Background()).CreateTagCategory(*client.NewCreateTagCategory("Classification",
+		"Parent Category for all Fybrik labels", "Fybrik")).Execute()
+
+	// Find the ID for the 'table' entity
+	// Find the ID for the 'string' type
+
+	// Add custom properties for tables
+}
+
 // NewOpenMetadataApiService creates a new api service
 func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApiServicer {
 	var SleepIntervalMS int
@@ -53,13 +66,7 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 		SleepIntervalMS: SleepIntervalMS,
 		NumRetries:      NumRetries}
 
-	c := s.getOpenMetadataClient()
-
-	// Create Tag Category for Fybrik
-	c.TagsApi.CreateCategory(context.Background()).CreateTagCategory(*client.NewCreateTagCategory("Classification",
-		"Parent Category for all Fybrik labels", "Fybrik")).Execute()
-
-	// XXX When it is possible, we should use the API to create Custom Properties such as "geography"
+	s.prepareOpenMetadataForFybrik()
 
 	return s
 }
