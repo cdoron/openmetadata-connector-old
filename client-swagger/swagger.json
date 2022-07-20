@@ -9389,7 +9389,10 @@
           "content" : {
             "application/json-patch+json" : {
               "schema" : {
-                "type" : "object"
+                "type" : "array",
+                "items" : {
+                    "type" : "object"
+                }
               },
               "example" : "[{op:remove, path:/a},{op:add, path: /b, value: val}]"
             }

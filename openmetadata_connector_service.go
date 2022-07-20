@@ -113,14 +113,14 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 	return s
 }
 
-func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) bool {
+func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) (bool, *client.Table) {
 	count := 0
 	for {
 		fmt.Println("running GetByName5")
-		_, _, err := c.TablesApi.GetTableByFQN(ctx, name).Execute()
+		table, _, err := c.TablesApi.GetTableByFQN(ctx, name).Execute()
 		if err == nil {
 			fmt.Println("Found the table!")
-			return true
+			return true, table
 		} else {
 			fmt.Println("Could not find the table. Let's try again")
 		}
@@ -132,7 +132,7 @@ func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context,
 		time.Sleep(time.Duration(s.SleepIntervalMS) * time.Millisecond)
 	}
 	fmt.Println("Too many retries. Could not find table. Giving up")
-	return false
+	return false, nil
 }
 
 func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
@@ -202,7 +202,27 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	}
 
 	assetID := *ingestionPipeline.Service.FullyQualifiedName + "." + *createAssetRequest.DestinationAssetID
-	success := s.waitUntilAssetIsDiscovered(ctx, c, assetID)
+	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetID)
+
+	var requestBody []map[string]interface{}
+	init := make(map[string]interface{})
+	init["op"] = "add"
+	init["path"] = "/extension"
+	init["value"] = make(map[string]interface{})
+
+	geography := make(map[string]interface{})
+	geography["op"] = "add"
+	geography["path"] = "/extension/geography"
+	geography["value"] = "theshire"
+
+	requestBody = append(requestBody, init)
+	requestBody = append(requestBody, geography)
+
+	resp, err := c.TablesApi.PatchTable(ctx, table.Id).RequestBody(requestBody).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.PatchTable``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+	}
 
 	if success {
 		return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetID}), nil
