@@ -15386,10 +15386,10 @@
             "type" : "string"
           },
           "newValue" : {
-            "type" : "object"
+            "type" : "string"
           },
           "oldValue" : {
-            "type" : "object"
+            "type" : "string"
           }
         }
       },

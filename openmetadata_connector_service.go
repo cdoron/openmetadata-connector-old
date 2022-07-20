@@ -31,16 +31,58 @@ type OpenMetadataApiService struct {
 }
 
 func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
+	ctx := context.Background()
 	c := s.getOpenMetadataClient()
 
 	// Create Tag Category for Fybrik
-	c.TagsApi.CreateTagCategory(context.Background()).CreateTagCategory(*client.NewCreateTagCategory("Classification",
+	c.TagsApi.CreateTagCategory(ctx).CreateTagCategory(*client.NewCreateTagCategory("Classification",
 		"Parent Category for all Fybrik labels", "Fybrik")).Execute()
 
 	// Find the ID for the 'table' entity
+	var tableID string
+
+	typeList, r, err := c.MetadataApi.ListTypes(ctx).Category("entity").Limit(100).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `MetadataApi.ListTypes``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return
+	}
+	for _, t := range typeList.Data {
+		if *t.FullyQualifiedName == "table" {
+			tableID = *t.Id
+			break
+		}
+	}
+
 	// Find the ID for the 'string' type
+	var stringID string
+	typeList, r, err = c.MetadataApi.ListTypes(ctx).Category("field").Limit(100).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `MetadataApi.ListTypes``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return
+	}
+	for _, t := range typeList.Data {
+		if *t.FullyQualifiedName == "string" {
+			stringID = *t.Id
+			break
+		}
+	}
 
 	// Add custom properties for tables
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"The vault plugin path where the destination data credentials will be stored as kubernetes secrets", "credentials",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Name of the resource", "name",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Geography of the resource", "geography",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Owner of the resource", "owner",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+
 }
 
 // NewOpenMetadataApiService creates a new api service
