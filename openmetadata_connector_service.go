@@ -34,7 +34,7 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 	c := s.getOpenMetadataClient()
 
 	// Create Tag Category for Fybrik
-	c.TagsApi.CreateCategory(context.Background()).CreateTagCategory(*client.NewCreateTagCategory("Classification",
+	c.TagsApi.CreateTagCategory(context.Background()).CreateTagCategory(*client.NewCreateTagCategory("Classification",
 		"Parent Category for all Fybrik labels", "Fybrik")).Execute()
 
 	// Find the ID for the 'table' entity
@@ -75,7 +75,7 @@ func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context,
 	count := 0
 	for {
 		fmt.Println("running GetByName5")
-		_, _, err := c.TablesApi.GetByName5(ctx, name).Execute()
+		_, _, err := c.TablesApi.GetTableByFQN(ctx, name).Execute()
 		if err == nil {
 			fmt.Println("Found the table!")
 			return true
@@ -123,7 +123,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	connection.SetConfig(createAssetRequest.Details.GetConnection().AdditionalProperties["mysql"].(map[string]interface{}))
 	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID+"-mysql", "Mysql")
 
-	databaseService, r, err := c.ServicesApi.Create16(ctx).CreateDatabaseService(*createDatabaseService).Execute()
+	databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Create16``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -138,7 +138,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		"metadata", *client.NewEntityReference(databaseService.Id, "databaseService"),
 		sourceConfig)
 
-	ingestionPipeline, r, err := c.IngestionPipelinesApi.Create17(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
+	ingestionPipeline, r, err := c.IngestionPipelinesApi.CreateIngestionPipeline(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.Create17``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -152,7 +152,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(r.StatusCode, nil), err
 	}
-	ingestionPipeline, r, err = c.IngestionPipelinesApi.TriggerIngestion(ctx, *ingestionPipeline.Id).Execute()
+	ingestionPipeline, r, err = c.IngestionPipelinesApi.TriggerIngestionPipelineRun(ctx, *ingestionPipeline.Id).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.TriggerIngestion``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -198,7 +198,7 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 	//fields := "tableConstraints,tablePartition,usageSummary,owner,profileSample,customMetrics,tags,followers,joins,sampleData,viewDefinition,tableProfile,location,tableQueries,dataModel,tests" // string | Fields requested in the returned resource (optional)
 	fields := "tags"
 	include := "non-deleted" // string | Include all, deleted, or non-deleted entities. (optional) (default to "non-deleted")
-	respAsset, r, err := c.TablesApi.GetByName5(ctx, assetID).Fields(fields).Include(include).Execute()
+	respAsset, r, err := c.TablesApi.GetTableByFQN(ctx, assetID).Fields(fields).Include(include).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetByName5``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -212,7 +212,7 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 	dataFormat := "SQL"
 	ret.Details.DataFormat = &dataFormat
 
-	respService, r, err := c.ServicesApi.Get19(ctx, respAsset.Service.Id).Execute()
+	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, respAsset.Service.Id).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Get19``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
