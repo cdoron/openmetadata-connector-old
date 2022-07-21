@@ -118,7 +118,7 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) (bool, *client.Table) {
 	count := 0
 	for {
-		fmt.Println("running GetByName5")
+		fmt.Println("running GetTableByFQN")
 		table, _, err := c.TablesApi.GetTableByFQN(ctx, name).Execute()
 		if err == nil {
 			fmt.Println("Found the table!")
@@ -151,43 +151,28 @@ func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
 func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAssetRequest, ctx context.Context, table *client.Table, c *client.APIClient) {
 	var requestBody []map[string]interface{}
 
+	customProperties := make(map[string]interface{})
+	if createAssetRequest.Credentials != nil {
+		customProperties["credentials"] = createAssetRequest.Credentials
+	}
+	if createAssetRequest.ResourceMetadata.Geography != nil {
+		customProperties["geography"] = createAssetRequest.ResourceMetadata.Geography
+	}
+	if createAssetRequest.Details.DataFormat != nil {
+		customProperties["dataFormat"] = createAssetRequest.Details.DataFormat
+	}
+	if createAssetRequest.ResourceMetadata.Name != nil {
+		customProperties["name"] = createAssetRequest.ResourceMetadata.Name
+	}
+	if createAssetRequest.ResourceMetadata.Owner != nil {
+		customProperties["owner"] = createAssetRequest.ResourceMetadata.Owner
+	}
+
 	init := make(map[string]interface{})
 	init["op"] = "add"
 	init["path"] = "/extension"
-	init["value"] = make(map[string]interface{})
+	init["value"] = customProperties
 	requestBody = append(requestBody, init)
-
-	if createAssetRequest.Credentials != nil {
-		credentials := make(map[string]interface{})
-		credentials["op"] = "add"
-		credentials["path"] = "/extension/credentials"
-		credentials["value"] = createAssetRequest.Credentials
-		requestBody = append(requestBody, credentials)
-	}
-
-	if createAssetRequest.ResourceMetadata.Geography != nil {
-		geography := make(map[string]interface{})
-		geography["op"] = "add"
-		geography["path"] = "/extension/geography"
-		geography["value"] = createAssetRequest.ResourceMetadata.Geography
-		requestBody = append(requestBody, geography)
-	}
-
-	if createAssetRequest.Details.DataFormat != nil {
-		dataFormat := make(map[string]interface{})
-		dataFormat["op"] = "add"
-		dataFormat["path"] = "/extension/dataFormat"
-		dataFormat["value"] = createAssetRequest.Details.DataFormat
-		requestBody = append(requestBody, dataFormat)
-	}
-
-	if createAssetRequest.ResourceMetadata.Name != nil {
-		name := make(map[string]interface{})
-		name["op"] = "add"
-		name["path"] = "/extension/name"
-		name["value"] = createAssetRequest.ResourceMetadata.Name
-		requestBody = append(requestBody, name)
-	}
 
 	tag1 := "PersonalData.Personal"
 	tag2 := "PII.NonSensitive"
