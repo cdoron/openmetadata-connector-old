@@ -146,6 +146,46 @@ func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
 	return client.NewAPIClient(&conf)
 }
 
+func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.Table, c *client.APIClient) {
+	var requestBody []map[string]interface{}
+	init := make(map[string]interface{})
+	init["op"] = "add"
+	init["path"] = "/extension"
+	init["value"] = make(map[string]interface{})
+
+	geography := make(map[string]interface{})
+	geography["op"] = "add"
+	geography["path"] = "/extension/geography"
+	geography["value"] = "theshire"
+
+	requestBody = append(requestBody, init)
+	requestBody = append(requestBody, geography)
+
+	tag1 := "PersonalData.Personal"
+	tag2 := "PII.NonSensitive"
+
+	columns := table.Columns
+	for i, c := range columns {
+		if c.Name == "Address" {
+			c.Tags = append(c.Tags, *&client.TagLabel{TagFQN: tag1, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
+			c.Tags = append(c.Tags, *&client.TagLabel{TagFQN: tag2, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
+		}
+		columns[i] = c
+	}
+
+	columnUpdate := make(map[string]interface{})
+	columnUpdate["op"] = "add"
+	columnUpdate["path"] = "/columns"
+	columnUpdate["value"] = columns
+	requestBody = append(requestBody, columnUpdate)
+
+	resp, err := c.TablesApi.PatchTable(ctx, table.Id).RequestBody(requestBody).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.PatchTable``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+	}
+}
+
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik
 func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	xRequestDatacatalogWriteCred string,
@@ -204,43 +244,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	assetID := *ingestionPipeline.Service.FullyQualifiedName + "." + *createAssetRequest.DestinationAssetID
 	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetID)
 
-	var requestBody []map[string]interface{}
-	init := make(map[string]interface{})
-	init["op"] = "add"
-	init["path"] = "/extension"
-	init["value"] = make(map[string]interface{})
-
-	geography := make(map[string]interface{})
-	geography["op"] = "add"
-	geography["path"] = "/extension/geography"
-	geography["value"] = "theshire"
-
-	requestBody = append(requestBody, init)
-	requestBody = append(requestBody, geography)
-
-	tag1 := "PersonalData.Personal"
-	tag2 := "PII.NonSensitive"
-
-	columns := table.Columns
-	for i, c := range columns {
-		if c.Name == "Address" {
-			c.Tags = append(c.Tags, *&client.TagLabel{TagFQN: tag1, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
-			c.Tags = append(c.Tags, *&client.TagLabel{TagFQN: tag2, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
-		}
-		columns[i] = c
-	}
-
-	columnUpdate := make(map[string]interface{})
-	columnUpdate["op"] = "add"
-	columnUpdate["path"] = "/columns"
-	columnUpdate["value"] = columns
-	requestBody = append(requestBody, columnUpdate)
-
-	resp, err := c.TablesApi.PatchTable(ctx, table.Id).RequestBody(requestBody).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.PatchTable``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
-	}
+	s.enrichAsset(ctx, table, c)
 
 	if success {
 		return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetID}), nil
