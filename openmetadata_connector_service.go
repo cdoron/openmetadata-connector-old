@@ -218,6 +218,24 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	requestBody = append(requestBody, init)
 	requestBody = append(requestBody, geography)
 
+	tag1 := "PersonalData.Personal"
+	tag2 := "PII.NonSensitive"
+
+	columns := table.Columns
+	for i, c := range columns {
+		if c.Name == "Address" {
+			c.Tags = append(c.Tags, *&client.TagLabel{TagFQN: tag1, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
+			c.Tags = append(c.Tags, *&client.TagLabel{TagFQN: tag2, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
+		}
+		columns[i] = c
+	}
+
+	columnUpdate := make(map[string]interface{})
+	columnUpdate["op"] = "add"
+	columnUpdate["path"] = "/columns"
+	columnUpdate["value"] = columns
+	requestBody = append(requestBody, columnUpdate)
+
 	resp, err := c.TablesApi.PatchTable(ctx, table.Id).RequestBody(requestBody).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.PatchTable``: %v\n", err)
