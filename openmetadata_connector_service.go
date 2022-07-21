@@ -82,7 +82,9 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
 		"Owner of the resource", "owner",
 		*client.NewEntityReference(stringID, "string"))).Execute()
-
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Data format", "dataFormat",
+		*client.NewEntityReference(stringID, "string"))).Execute()
 }
 
 // NewOpenMetadataApiService creates a new api service
@@ -146,20 +148,46 @@ func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
 	return client.NewAPIClient(&conf)
 }
 
-func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.Table, c *client.APIClient) {
+func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAssetRequest, ctx context.Context, table *client.Table, c *client.APIClient) {
 	var requestBody []map[string]interface{}
+
 	init := make(map[string]interface{})
 	init["op"] = "add"
 	init["path"] = "/extension"
 	init["value"] = make(map[string]interface{})
-
-	geography := make(map[string]interface{})
-	geography["op"] = "add"
-	geography["path"] = "/extension/geography"
-	geography["value"] = "theshire"
-
 	requestBody = append(requestBody, init)
-	requestBody = append(requestBody, geography)
+
+	if createAssetRequest.Credentials != nil {
+		credentials := make(map[string]interface{})
+		credentials["op"] = "add"
+		credentials["path"] = "/extension/credentials"
+		credentials["value"] = createAssetRequest.Credentials
+		requestBody = append(requestBody, credentials)
+	}
+
+	if createAssetRequest.ResourceMetadata.Geography != nil {
+		geography := make(map[string]interface{})
+		geography["op"] = "add"
+		geography["path"] = "/extension/geography"
+		geography["value"] = createAssetRequest.ResourceMetadata.Geography
+		requestBody = append(requestBody, geography)
+	}
+
+	if createAssetRequest.Details.DataFormat != nil {
+		dataFormat := make(map[string]interface{})
+		dataFormat["op"] = "add"
+		dataFormat["path"] = "/extension/dataFormat"
+		dataFormat["value"] = createAssetRequest.Details.DataFormat
+		requestBody = append(requestBody, dataFormat)
+	}
+
+	if createAssetRequest.ResourceMetadata.Name != nil {
+		name := make(map[string]interface{})
+		name["op"] = "add"
+		name["path"] = "/extension/name"
+		name["value"] = createAssetRequest.ResourceMetadata.Name
+		requestBody = append(requestBody, name)
+	}
 
 	tag1 := "PersonalData.Personal"
 	tag2 := "PII.NonSensitive"
@@ -244,7 +272,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	assetID := *ingestionPipeline.Service.FullyQualifiedName + "." + *createAssetRequest.DestinationAssetID
 	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetID)
 
-	s.enrichAsset(ctx, table, c)
+	s.enrichAsset(createAssetRequest, ctx, table, c)
 
 	if success {
 		return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetID}), nil
