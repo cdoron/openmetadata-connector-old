@@ -192,6 +192,16 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 	tag1 := "PersonalData.Personal"
 	tag2 := "PII.NonSensitive"
 
+	var tags []client.TagLabel
+	tags = append(tags, *&client.TagLabel{TagFQN: tag1, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
+	tags = append(tags, *&client.TagLabel{TagFQN: tag2, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
+
+	tagsUpdate := make(map[string]interface{})
+	tagsUpdate["op"] = "add"
+	tagsUpdate["path"] = "/tags"
+	tagsUpdate["value"] = tags
+	requestBody = append(requestBody, tagsUpdate)
+
 	columns := table.Columns
 	for i, c := range columns {
 		if c.Name == "Address" {
