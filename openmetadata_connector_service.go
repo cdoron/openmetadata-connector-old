@@ -157,6 +157,19 @@ func getTag(c *client.APIClient, tagFQN string) client.TagLabel {
 	}
 }
 
+func tagColumn(c *client.APIClient, columns []client.Column, colName string, colTags map[string]interface{}) []client.Column {
+	for i, col := range columns {
+		if col.Name == colName {
+			for tag := range colTags {
+				col.Tags = append(col.Tags, getTag(c, tag))
+			}
+			columns[i] = col
+			return columns
+		}
+	}
+	return columns
+}
+
 func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAssetRequest, ctx context.Context, table *client.Table, c *client.APIClient) {
 	var requestBody []map[string]interface{}
 
@@ -196,16 +209,12 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 	tagsUpdate["value"] = tags
 	requestBody = append(requestBody, tagsUpdate)
 
-	tag1 := "PersonalData.Personal"
-	tag2 := "PII.NonSensitive"
-
 	columns := table.Columns
-	for i, c := range columns {
-		if c.Name == "Address" {
-			c.Tags = append(c.Tags, *&client.TagLabel{TagFQN: tag1, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
-			c.Tags = append(c.Tags, *&client.TagLabel{TagFQN: tag2, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
+
+	for _, col := range createAssetRequest.ResourceMetadata.Columns {
+		if len(col.Tags) > 0 {
+			columns = tagColumn(c, columns, col.Name, col.Tags)
 		}
-		columns[i] = c
 	}
 
 	columnUpdate := make(map[string]interface{})

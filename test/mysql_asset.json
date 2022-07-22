@@ -26,7 +26,8 @@
       {
         "name": "FirstName",
         "tags": {
-          "PII.NonSensitive": "true"
+          "PII.NonSensitive": "true",
+          "PII.Sensitive": "true"
         }
       },
       {
