@@ -148,7 +148,15 @@ func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
 	return client.NewAPIClient(&conf)
 }
 
-func getTag(c *client.APIClient, tagFQN string) client.TagLabel {
+func getTag(ctx context.Context, c *client.APIClient, tagFQN string) client.TagLabel {
+	if strings.Count(tagFQN, ".") == 0 {
+		// not a 'category.primary' or 'category.primary.secondary' format
+		// we will translate it to 'Fybrik.tagFQN'. We try to create it
+		// (whether it exists or not)
+		createTag := *client.NewCreateTag(tagFQN, tagFQN)
+		c.TagsApi.CreatePrimaryTag(ctx, "Fybrik").CreateTag(createTag).Execute()
+		tagFQN = "Fybrik." + tagFQN
+	}
 	return *&client.TagLabel{
 		LabelType: "Manual",
 		Source:    "Tag",
@@ -157,11 +165,11 @@ func getTag(c *client.APIClient, tagFQN string) client.TagLabel {
 	}
 }
 
-func tagColumn(c *client.APIClient, columns []client.Column, colName string, colTags map[string]interface{}) []client.Column {
+func tagColumn(ctx context.Context, c *client.APIClient, columns []client.Column, colName string, colTags map[string]interface{}) []client.Column {
 	for i, col := range columns {
 		if col.Name == colName {
 			for tag := range colTags {
-				col.Tags = append(col.Tags, getTag(c, tag))
+				col.Tags = append(col.Tags, getTag(ctx, c, tag))
 			}
 			columns[i] = col
 			return columns
@@ -201,7 +209,7 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 	// traverse createAssetRequest.ResourceMetadata.Tags
 	// use only the key, ignore the value (assume value is 'true')
 	for tagFQN := range createAssetRequest.ResourceMetadata.Tags {
-		tags = append(tags, getTag(c, tagFQN))
+		tags = append(tags, getTag(ctx, c, tagFQN))
 	}
 
 	tagsUpdate := make(map[string]interface{})
@@ -214,7 +222,7 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 
 	for _, col := range createAssetRequest.ResourceMetadata.Columns {
 		if len(col.Tags) > 0 {
-			columns = tagColumn(c, columns, col.Name, col.Tags)
+			columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
 		}
 	}
 

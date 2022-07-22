@@ -27,6 +27,7 @@
         "name": "FirstName",
         "tags": {
           "PII.NonSensitive": "true",
+          "financial": "true",
           "PII.Sensitive": "true"
         }
       },
