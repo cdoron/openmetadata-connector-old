@@ -148,6 +148,15 @@ func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
 	return client.NewAPIClient(&conf)
 }
 
+func getTag(c *client.APIClient, tagFQN string) client.TagLabel {
+	return *&client.TagLabel{
+		LabelType: "Manual",
+		Source:    "Tag",
+		State:     "Confirmed",
+		TagFQN:    tagFQN,
+	}
+}
+
 func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAssetRequest, ctx context.Context, table *client.Table, c *client.APIClient) {
 	var requestBody []map[string]interface{}
 
@@ -174,18 +183,21 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 	init["value"] = customProperties
 	requestBody = append(requestBody, init)
 
-	tag1 := "PersonalData.Personal"
-	tag2 := "PII.NonSensitive"
-
 	var tags []client.TagLabel
-	tags = append(tags, *&client.TagLabel{TagFQN: tag1, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
-	tags = append(tags, *&client.TagLabel{TagFQN: tag2, LabelType: "Manual", Source: "Tag", State: "Confirmed"})
+	// traverse createAssetRequest.ResourceMetadata.Tags
+	// use only the key, ignore the value (assume value is 'true')
+	for tagFQN, _ := range createAssetRequest.ResourceMetadata.Tags {
+		tags = append(tags, getTag(c, tagFQN))
+	}
 
 	tagsUpdate := make(map[string]interface{})
 	tagsUpdate["op"] = "add"
 	tagsUpdate["path"] = "/tags"
 	tagsUpdate["value"] = tags
 	requestBody = append(requestBody, tagsUpdate)
+
+	tag1 := "PersonalData.Personal"
+	tag2 := "PII.NonSensitive"
 
 	columns := table.Columns
 	for i, c := range columns {
