@@ -170,7 +170,8 @@ func tagColumn(c *client.APIClient, columns []client.Column, colName string, col
 	return columns
 }
 
-func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAssetRequest, ctx context.Context, table *client.Table, c *client.APIClient) {
+func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAssetRequest,
+	ctx context.Context, table *client.Table, c *client.APIClient) (bool, error) {
 	var requestBody []map[string]interface{}
 
 	customProperties := make(map[string]interface{})
@@ -199,7 +200,7 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 	var tags []client.TagLabel
 	// traverse createAssetRequest.ResourceMetadata.Tags
 	// use only the key, ignore the value (assume value is 'true')
-	for tagFQN, _ := range createAssetRequest.ResourceMetadata.Tags {
+	for tagFQN := range createAssetRequest.ResourceMetadata.Tags {
 		tags = append(tags, getTag(c, tagFQN))
 	}
 
@@ -227,7 +228,10 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.PatchTable``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+		return false, err
 	}
+
+	return true, nil
 }
 
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik
@@ -288,13 +292,16 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	assetID := *ingestionPipeline.Service.FullyQualifiedName + "." + *createAssetRequest.DestinationAssetID
 	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetID)
 
-	s.enrichAsset(createAssetRequest, ctx, table, c)
-
-	if success {
-		return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetID}), nil
-	} else {
+	if !success {
 		return api.Response(http.StatusBadRequest, nil), errors.New("Could not find table " + assetID)
 	}
+
+	success, err = s.enrichAsset(createAssetRequest, ctx, table, c)
+	if !success {
+		return api.Response(http.StatusBadRequest, nil), err
+	}
+
+	return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetID}), nil
 }
 
 // DeleteAsset - This REST API deletes data asset
