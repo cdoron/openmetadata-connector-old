@@ -262,7 +262,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Create16``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(r.StatusCode, nil), err
 	}
