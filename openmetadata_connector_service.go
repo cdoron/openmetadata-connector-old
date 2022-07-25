@@ -25,9 +25,10 @@ import (
 )
 
 type OpenMetadataApiService struct {
-	Endpoint        string
-	SleepIntervalMS int
-	NumRetries      int
+	Endpoint             string
+	SleepIntervalMS      int
+	NumRetries           int
+	NameToDatabaseStruct map[string]databaseType
 }
 
 func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
@@ -106,9 +107,13 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 		NumRetries = 20
 	}
 
+	nameToDatabaseStruct := make(map[string]databaseType)
+	nameToDatabaseStruct["mysql"] = &mysql{}
+
 	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
-		SleepIntervalMS: SleepIntervalMS,
-		NumRetries:      NumRetries}
+		SleepIntervalMS:      SleepIntervalMS,
+		NumRetries:           NumRetries,
+		NameToDatabaseStruct: nameToDatabaseStruct}
 
 	s.prepareOpenMetadataForFybrik()
 
@@ -247,8 +252,12 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	xRequestDatacatalogWriteCred string,
 	createAssetRequest models.CreateAssetRequest) (api.ImplResponse, error) {
 
-	if createAssetRequest.Details.Connection.Name != "mysql" {
-		return api.Response(http.StatusBadRequest, nil), errors.New("currently, we only support the mysql connection")
+	connectionName := createAssetRequest.Details.Connection.Name
+
+	dt, found := s.NameToDatabaseStruct[connectionName]
+	if !found {
+		return api.Response(http.StatusBadRequest, nil), errors.New("currently, " + connectionName +
+			" connection type not supported")
 	}
 
 	c := s.getOpenMetadataClient()
@@ -257,8 +266,12 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	// If does not exist, let us create database service
 	connection := client.NewDatabaseConnection()
-	connection.SetConfig(createAssetRequest.Details.GetConnection().AdditionalProperties["mysql"].(map[string]interface{}))
-	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID+"-mysql", "Mysql")
+
+	OMConfig := dt.translateFybrikConfigToOpenMetadataConfig(createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{}))
+
+	connection.SetConfig(OMConfig)
+	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID+"-"+connectionName,
+		dt.OMTypeName())
 
 	databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 	if err != nil {
