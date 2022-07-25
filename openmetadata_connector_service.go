@@ -109,6 +109,7 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 
 	nameToDatabaseStruct := make(map[string]databaseType)
 	nameToDatabaseStruct["mysql"] = &mysql{}
+	nameToDatabaseStruct["s3"] = &s3{}
 
 	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
 		SleepIntervalMS:      SleepIntervalMS,
