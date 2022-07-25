@@ -109,7 +109,7 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 
 	nameToDatabaseStruct := make(map[string]databaseType)
 	nameToDatabaseStruct["mysql"] = &mysql{}
-	nameToDatabaseStruct["s3"] = &s3{}
+	nameToDatabaseStruct["s3"] = NewS3()
 
 	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
 		SleepIntervalMS:      SleepIntervalMS,
@@ -263,7 +263,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	c := s.getOpenMetadataClient()
 
-	s.findService(ctx, c, createAssetRequest)
+	s.findService(ctx, c, createAssetRequest, connectionName)
 
 	// If does not exist, let us create database service
 	connection := client.NewDatabaseConnection()

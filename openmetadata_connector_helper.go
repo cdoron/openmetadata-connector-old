@@ -11,8 +11,8 @@ import (
 
 func (s *OpenMetadataApiService) findService(ctx context.Context,
 	c *client.APIClient,
-	createAssetRequest models.CreateAssetRequest) bool {
-	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties["mysql"].(map[string]interface{})
+	createAssetRequest models.CreateAssetRequest, connectionName string) bool {
+	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{})
 	// Let us begin with checking whether the database service already exists
 	var foundService client.DatabaseService
 
