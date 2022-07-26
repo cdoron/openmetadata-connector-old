@@ -4,13 +4,13 @@ go 1.17
 
 require (
 	github.com/fybrik/datacatalog-go v0.0.0
+	github.com/fybrik/datacatalog-go-client v0.0.0-00010101000000-000000000000
 	github.com/fybrik/datacatalog-go-models v0.0.0
 	github.com/spf13/cobra v1.5.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
-	github.com/fybrik/datacatalog-go-client v0.0.0-00010101000000-000000000000 // indirect
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
