@@ -11,13 +11,13 @@ import (
 
 func (s *OpenMetadataApiService) findService(ctx context.Context,
 	c *client.APIClient,
-	createAssetRequest models.CreateAssetRequest, connectionName string) (string, bool) {
+	createAssetRequest models.CreateAssetRequest, connectionName string) (string, string, bool) {
 	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{})
 
 	serviceList, _, err := c.DatabaseServiceApi.ListDatabaseServices(ctx).Execute()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Service does not exist yet")
-		return "", false
+		return "", "", false
 	}
 	for _, service := range serviceList.Data {
 		found := true
@@ -29,17 +29,17 @@ func (s *OpenMetadataApiService) findService(ctx context.Context,
 			}
 		}
 		if found {
-			return service.Id, true
+			return service.Id, *service.FullyQualifiedName, true
 		}
 	}
-	return "", false
+	return "", "", false
 }
 
 func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 	c *client.APIClient,
 	createAssetRequest models.CreateAssetRequest,
 	connectionName string,
-	dt databaseType) (string, error) {
+	dt databaseType) (string, string, error) {
 	connection := client.NewDatabaseConnection()
 
 	OMConfig := dt.translateFybrikConfigToOpenMetadataConfig(createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{}))
@@ -52,7 +52,7 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return "", err
+		return "", "", err
 	}
-	return databaseService.Id, nil
+	return databaseService.Id, *databaseService.FullyQualifiedName, nil
 }

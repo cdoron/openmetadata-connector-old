@@ -264,17 +264,22 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	c := s.getOpenMetadataClient()
 
 	var databaseServiceId string
+	var databaseServiceName string
 	var err error
 
 	// Let us begin with checking whether the database service already exists
-	databaseServiceId, found = s.findService(ctx, c, createAssetRequest, connectionName)
+	databaseServiceId, databaseServiceName, found = s.findService(ctx, c, createAssetRequest, connectionName)
 	if !found {
 		// If does not exist, let us create database service
-		databaseServiceId, err = s.createDatabaseService(ctx, c, createAssetRequest, connectionName, dt)
+		databaseServiceId, databaseServiceName, err = s.createDatabaseService(ctx, c, createAssetRequest, connectionName, dt)
 		if err != nil {
 			return api.Response(http.StatusBadRequest, nil), err
 		}
 	}
+
+	// now that we know the of the database service, we can determine the asset name in OpenMetadata
+	assetId := databaseServiceName + "." + *createAssetRequest.DestinationAssetID
+	fmt.Fprintln(os.Stderr, "QQQ: "+assetId)
 
 	// Next let us create an ingestion pipeline
 	sourceConfig := *client.NewSourceConfig()
@@ -286,7 +291,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	ingestionPipeline, r, err := c.IngestionPipelinesApi.CreateIngestionPipeline(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.Create17``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.CreateIngestionPipeline``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(r.StatusCode, nil), err
 	}
