@@ -161,70 +161,6 @@ func tagColumn(ctx context.Context, c *client.APIClient, columns []client.Column
 	return columns
 }
 
-func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAssetRequest,
-	ctx context.Context, table *client.Table, c *client.APIClient) (bool, error) {
-	var requestBody []map[string]interface{}
-
-	customProperties := make(map[string]interface{})
-	if createAssetRequest.Credentials != nil {
-		customProperties["credentials"] = createAssetRequest.Credentials
-	}
-	if createAssetRequest.ResourceMetadata.Geography != nil {
-		customProperties["geography"] = createAssetRequest.ResourceMetadata.Geography
-	}
-	if createAssetRequest.Details.DataFormat != nil {
-		customProperties["dataFormat"] = createAssetRequest.Details.DataFormat
-	}
-	if createAssetRequest.ResourceMetadata.Name != nil {
-		customProperties["name"] = createAssetRequest.ResourceMetadata.Name
-	}
-	if createAssetRequest.ResourceMetadata.Owner != nil {
-		customProperties["owner"] = createAssetRequest.ResourceMetadata.Owner
-	}
-
-	init := make(map[string]interface{})
-	init["op"] = "add"
-	init["path"] = "/extension"
-	init["value"] = customProperties
-	requestBody = append(requestBody, init)
-
-	var tags []client.TagLabel
-	// traverse createAssetRequest.ResourceMetadata.Tags
-	// use only the key, ignore the value (assume value is 'true')
-	for tagFQN := range createAssetRequest.ResourceMetadata.Tags {
-		tags = append(tags, getTag(ctx, c, tagFQN))
-	}
-
-	tagsUpdate := make(map[string]interface{})
-	tagsUpdate["op"] = "add"
-	tagsUpdate["path"] = "/tags"
-	tagsUpdate["value"] = tags
-	requestBody = append(requestBody, tagsUpdate)
-
-	columns := table.Columns
-
-	for _, col := range createAssetRequest.ResourceMetadata.Columns {
-		if len(col.Tags) > 0 {
-			columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
-		}
-	}
-
-	columnUpdate := make(map[string]interface{})
-	columnUpdate["op"] = "add"
-	columnUpdate["path"] = "/columns"
-	columnUpdate["value"] = columns
-	requestBody = append(requestBody, columnUpdate)
-
-	resp, err := c.TablesApi.PatchTable(ctx, table.Id).RequestBody(requestBody).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.PatchTable``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
-		return false, err
-	}
-
-	return true, nil
-}
-
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik
 func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	xRequestDatacatalogWriteCred string,
@@ -263,41 +199,34 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetId}), nil
 	}
 
-	// Next let us create an ingestion pipeline
-	sourceConfig := *client.NewSourceConfig()
-	sourceConfig.SetConfig(map[string]interface{}{"type": "DatabaseMetadata"})
-	newCreateIngestionPipeline := *client.NewCreateIngestionPipeline(*&client.AirflowConfig{},
-		"pipeline-"+*createAssetRequest.DestinationAssetID,
-		"metadata", *client.NewEntityReference(databaseServiceId, "databaseService"),
-		sourceConfig)
+	// Asset not discovered yet
+	// Let's check whether there is an ingestion pipeline we can trigger
+	ingestionPipelineName := databaseServiceName + ".\"" + databaseServiceName + ".pipeline-" + *createAssetRequest.DestinationAssetID + "\""
 
-	ingestionPipeline, r, err := c.IngestionPipelinesApi.CreateIngestionPipeline(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.CreateIngestionPipeline``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(r.StatusCode, nil), err
+	var ingestionPipelineID string
+	ingestionPipelineID, found = s.findIngestionPipeline(ctx, c, ingestionPipelineName)
+
+	if !found {
+		// Let us create an ingestion pipeline
+		ingestionPipelineID, err = s.createIngestionPipeline(ctx, c, databaseServiceId, ingestionPipelineName)
 	}
 
-	// Let us deploy the ingestion pipeline
-	ingestionPipeline, r, err = c.IngestionPipelinesApi.DeployIngestion(ctx, *ingestionPipeline.Id).Execute()
+	// Let us deploy and run the ingestion pipeline
+	err = s.deployAndRunIngestionPipeline(ctx, c, ingestionPipelineID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.DeployIngestion``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(r.StatusCode, nil), err
-	}
-	ingestionPipeline, r, err = c.IngestionPipelinesApi.TriggerIngestionPipelineRun(ctx, *ingestionPipeline.Id).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.TriggerIngestion``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(r.StatusCode, nil), err
+		return api.Response(http.StatusBadRequest, nil), err
 	}
 
+	// We just triggered a run of the ingestion pipeline.
+	// Now we need to wait unti the asset is discovered
 	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetId)
 
 	if !success {
 		return api.Response(http.StatusBadRequest, nil), errors.New("Could not find table " + assetId)
 	}
 
+	// Now that OM is aware of the asset, we need to enrich it --
+	// add tags to asset and to columns, and populate the custom properties
 	success, err = s.enrichAsset(createAssetRequest, ctx, table, c)
 	if !success {
 		return api.Response(http.StatusBadRequest, nil), err

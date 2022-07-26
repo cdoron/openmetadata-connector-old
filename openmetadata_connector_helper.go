@@ -81,6 +81,124 @@ func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context,
 }
 
 func (s *OpenMetadataApiService) findAsset(ctx context.Context, c *client.APIClient, assetId string) bool {
-	_, _, err := c.TablesApi.GetTableByFQN(ctx, assetId).Execute()
+	_, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.GetTableByFQN``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
 	return err == nil
+}
+
+func (s *OpenMetadataApiService) findIngestionPipeline(ctx context.Context, c *client.APIClient, ingestionPipelineName string) (string, bool) {
+	pipeline, _, err := c.IngestionPipelinesApi.GetSpecificIngestionPipelineByFQN(ctx, ingestionPipelineName).Execute()
+	if err != nil {
+		return "", false
+	}
+	return *pipeline.Id, true
+}
+
+func (s *OpenMetadataApiService) createIngestionPipeline(ctx context.Context,
+	c *client.APIClient,
+	databaseServiceId string,
+	ingestionPipelineName string) (string, error) {
+	sourceConfig := *client.NewSourceConfig()
+	sourceConfig.SetConfig(map[string]interface{}{"type": "DatabaseMetadata"})
+	newCreateIngestionPipeline := *client.NewCreateIngestionPipeline(*&client.AirflowConfig{},
+		ingestionPipelineName,
+		"metadata", *client.NewEntityReference(databaseServiceId, "databaseService"),
+		sourceConfig)
+
+	ingestionPipeline, r, err := c.IngestionPipelinesApi.CreateIngestionPipeline(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.CreateIngestionPipeline``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return "", err
+	}
+	return *ingestionPipeline.Id, nil
+}
+
+func (s *OpenMetadataApiService) deployAndRunIngestionPipeline(ctx context.Context,
+	c *client.APIClient,
+	ingestionPipelineID string) error {
+	// Let us deploy the ingestion pipeline
+	_, r, err := c.IngestionPipelinesApi.DeployIngestion(ctx, ingestionPipelineID).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.DeployIngestion``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return err
+	}
+
+	// Let us trigger a run of the ingestion pipeline
+	_, r, err = c.IngestionPipelinesApi.TriggerIngestionPipelineRun(ctx, ingestionPipelineID).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.TriggerIngestion``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return err
+	}
+
+	return nil
+}
+
+func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAssetRequest,
+	ctx context.Context, table *client.Table, c *client.APIClient) (bool, error) {
+	var requestBody []map[string]interface{}
+
+	customProperties := make(map[string]interface{})
+	if createAssetRequest.Credentials != nil {
+		customProperties["credentials"] = createAssetRequest.Credentials
+	}
+	if createAssetRequest.ResourceMetadata.Geography != nil {
+		customProperties["geography"] = createAssetRequest.ResourceMetadata.Geography
+	}
+	if createAssetRequest.Details.DataFormat != nil {
+		customProperties["dataFormat"] = createAssetRequest.Details.DataFormat
+	}
+	if createAssetRequest.ResourceMetadata.Name != nil {
+		customProperties["name"] = createAssetRequest.ResourceMetadata.Name
+	}
+	if createAssetRequest.ResourceMetadata.Owner != nil {
+		customProperties["owner"] = createAssetRequest.ResourceMetadata.Owner
+	}
+
+	init := make(map[string]interface{})
+	init["op"] = "add"
+	init["path"] = "/extension"
+	init["value"] = customProperties
+	requestBody = append(requestBody, init)
+
+	var tags []client.TagLabel
+	// traverse createAssetRequest.ResourceMetadata.Tags
+	// use only the key, ignore the value (assume value is 'true')
+	for tagFQN := range createAssetRequest.ResourceMetadata.Tags {
+		tags = append(tags, getTag(ctx, c, tagFQN))
+	}
+
+	tagsUpdate := make(map[string]interface{})
+	tagsUpdate["op"] = "add"
+	tagsUpdate["path"] = "/tags"
+	tagsUpdate["value"] = tags
+	requestBody = append(requestBody, tagsUpdate)
+
+	columns := table.Columns
+
+	for _, col := range createAssetRequest.ResourceMetadata.Columns {
+		if len(col.Tags) > 0 {
+			columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
+		}
+	}
+
+	columnUpdate := make(map[string]interface{})
+	columnUpdate["op"] = "add"
+	columnUpdate["path"] = "/columns"
+	columnUpdate["value"] = columns
+	requestBody = append(requestBody, columnUpdate)
+
+	resp, err := c.TablesApi.PatchTable(ctx, table.Id).RequestBody(requestBody).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.PatchTable``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+		return false, err
+	}
+
+	return true, nil
 }

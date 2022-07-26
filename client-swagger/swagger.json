@@ -15389,10 +15389,10 @@
             "type" : "string"
           },
           "newValue" : {
-            "type" : "string"
+            "type" : "interface{}"
           },
           "oldValue" : {
-            "type" : "string"
+            "type" : "interface{}"
           }
         }
       },
