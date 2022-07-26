@@ -263,22 +263,17 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	c := s.getOpenMetadataClient()
 
-	s.findService(ctx, c, createAssetRequest, connectionName)
+	var databaseServiceId string
+	var err error
 
-	// If does not exist, let us create database service
-	connection := client.NewDatabaseConnection()
-
-	OMConfig := dt.translateFybrikConfigToOpenMetadataConfig(createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{}))
-
-	connection.SetConfig(OMConfig)
-	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID+"-"+connectionName,
-		dt.OMTypeName())
-
-	databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(r.StatusCode, nil), err
+	// Let us begin with checking whether the database service already exists
+	databaseServiceId, found = s.findService(ctx, c, createAssetRequest, connectionName)
+	if !found {
+		// If does not exist, let us create database service
+		databaseServiceId, err = s.createDatabaseService(ctx, c, createAssetRequest, connectionName, dt)
+		if err != nil {
+			return api.Response(http.StatusBadRequest, nil), err
+		}
 	}
 
 	// Next let us create an ingestion pipeline
@@ -286,7 +281,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	sourceConfig.SetConfig(map[string]interface{}{"type": "DatabaseMetadata"})
 	newCreateIngestionPipeline := *client.NewCreateIngestionPipeline(*&client.AirflowConfig{},
 		"pipeline-"+*createAssetRequest.DestinationAssetID,
-		"metadata", *client.NewEntityReference(databaseService.Id, "databaseService"),
+		"metadata", *client.NewEntityReference(databaseServiceId, "databaseService"),
 		sourceConfig)
 
 	ingestionPipeline, r, err := c.IngestionPipelinesApi.CreateIngestionPipeline(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()

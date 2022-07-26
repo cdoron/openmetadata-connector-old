@@ -11,15 +11,13 @@ import (
 
 func (s *OpenMetadataApiService) findService(ctx context.Context,
 	c *client.APIClient,
-	createAssetRequest models.CreateAssetRequest, connectionName string) bool {
+	createAssetRequest models.CreateAssetRequest, connectionName string) (string, bool) {
 	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{})
-	// Let us begin with checking whether the database service already exists
-	var foundService client.DatabaseService
 
 	serviceList, _, err := c.DatabaseServiceApi.ListDatabaseServices(ctx).Execute()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Service does not exist yet")
-		return false
+		return "", false
 	}
 	for _, service := range serviceList.Data {
 		found := true
@@ -31,10 +29,30 @@ func (s *OpenMetadataApiService) findService(ctx context.Context,
 			}
 		}
 		if found {
-			foundService = service
-			break
+			return service.Id, true
 		}
 	}
-	fmt.Fprintln(os.Stderr, foundService)
-	return true
+	return "", false
+}
+
+func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
+	c *client.APIClient,
+	createAssetRequest models.CreateAssetRequest,
+	connectionName string,
+	dt databaseType) (string, error) {
+	connection := client.NewDatabaseConnection()
+
+	OMConfig := dt.translateFybrikConfigToOpenMetadataConfig(createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{}))
+
+	connection.SetConfig(OMConfig)
+	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID+"-"+connectionName,
+		dt.OMTypeName())
+
+	databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return "", err
+	}
+	return databaseService.Id, nil
 }
