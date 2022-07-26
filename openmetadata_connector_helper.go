@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
@@ -55,4 +56,31 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 		return "", "", err
 	}
 	return databaseService.Id, *databaseService.FullyQualifiedName, nil
+}
+
+func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) (bool, *client.Table) {
+	count := 0
+	for {
+		fmt.Println("running GetTableByFQN")
+		table, _, err := c.TablesApi.GetTableByFQN(ctx, name).Execute()
+		if err == nil {
+			fmt.Println("Found the table!")
+			return true, table
+		} else {
+			fmt.Println("Could not find the table. Let's try again")
+		}
+
+		if count == s.NumRetries {
+			break
+		}
+		count++
+		time.Sleep(time.Duration(s.SleepIntervalMS) * time.Millisecond)
+	}
+	fmt.Println("Too many retries. Could not find table. Giving up")
+	return false, nil
+}
+
+func (s *OpenMetadataApiService) findAsset(ctx context.Context, c *client.APIClient, assetId string) bool {
+	_, _, err := c.TablesApi.GetTableByFQN(ctx, assetId).Execute()
+	return err == nil
 }

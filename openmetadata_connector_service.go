@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
@@ -119,28 +118,6 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 	s.prepareOpenMetadataForFybrik()
 
 	return s
-}
-
-func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) (bool, *client.Table) {
-	count := 0
-	for {
-		fmt.Println("running GetTableByFQN")
-		table, _, err := c.TablesApi.GetTableByFQN(ctx, name).Execute()
-		if err == nil {
-			fmt.Println("Found the table!")
-			return true, table
-		} else {
-			fmt.Println("Could not find the table. Let's try again")
-		}
-
-		if count == s.NumRetries {
-			break
-		}
-		count++
-		time.Sleep(time.Duration(s.SleepIntervalMS) * time.Millisecond)
-	}
-	fmt.Println("Too many retries. Could not find table. Giving up")
-	return false, nil
 }
 
 func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
@@ -279,7 +256,12 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	// now that we know the of the database service, we can determine the asset name in OpenMetadata
 	assetId := databaseServiceName + "." + *createAssetRequest.DestinationAssetID
-	fmt.Fprintln(os.Stderr, "QQQ: "+assetId)
+
+	// Let's check whether OM already has this asset
+	found = s.findAsset(ctx, c, assetId)
+	if found {
+		return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetId}), nil
+	}
 
 	// Next let us create an ingestion pipeline
 	sourceConfig := *client.NewSourceConfig()
@@ -310,11 +292,10 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		return api.Response(r.StatusCode, nil), err
 	}
 
-	assetID := *ingestionPipeline.Service.FullyQualifiedName + "." + *createAssetRequest.DestinationAssetID
-	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetID)
+	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetId)
 
 	if !success {
-		return api.Response(http.StatusBadRequest, nil), errors.New("Could not find table " + assetID)
+		return api.Response(http.StatusBadRequest, nil), errors.New("Could not find table " + assetId)
 	}
 
 	success, err = s.enrichAsset(createAssetRequest, ctx, table, c)
@@ -322,7 +303,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		return api.Response(http.StatusBadRequest, nil), err
 	}
 
-	return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetID}), nil
+	return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetId}), nil
 }
 
 // DeleteAsset - This REST API deletes data asset
