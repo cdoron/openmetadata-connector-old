@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"reflect"
 	"time"
@@ -204,5 +204,18 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 }
 
 func (s *OpenMetadataApiService) deleteAsset(ctx context.Context, c *client.APIClient, assetId string) (int, error) {
-	return 400, errors.New("QQQ")
+	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetTableByFQN``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return http.StatusNotFound, err
+	}
+
+	r, err = c.TablesApi.DeleteTable(ctx, table.Id).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.DeleteTable``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return http.StatusBadRequest, err
+	}
+	return http.StatusOK, nil
 }
