@@ -9,8 +9,8 @@
       "s3": {
         "endpoint": "https://s3.eu-de.cloud-object-storage.appdomain.cloud",
         "bucket": "fake-csv-bucket",
-        "access_key_id": "319b20d1205e4a64a783095c41cfdee5",
-        "secret_access_id": "0638e17f631f1ff059743354880e15b50c7297c1d1720c04"
+        "access_key_id": "XXX",
+        "secret_access_id": "YYY"
       }
     }
   },
