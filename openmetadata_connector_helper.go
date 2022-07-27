@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -200,4 +201,8 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 	}
 
 	return true, nil
+}
+
+func (s *OpenMetadataApiService) deleteAsset(ctx context.Context, c *client.APIClient, assetId string) (int, error) {
+	return 400, errors.New("QQQ")
 }
