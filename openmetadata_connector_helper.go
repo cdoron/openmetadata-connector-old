@@ -139,25 +139,28 @@ func (s *OpenMetadataApiService) deployAndRunIngestionPipeline(ctx context.Conte
 	return nil
 }
 
-func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAssetRequest,
-	ctx context.Context, table *client.Table, c *client.APIClient) (bool, error) {
+func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.Table, c *client.APIClient,
+	credentials *string, geography *string, name *string, owner *string,
+	dataFormat *string,
+	requestTags map[string]interface{},
+	requestColumns []models.ResourceColumn) (bool, error) {
 	var requestBody []map[string]interface{}
 
 	customProperties := make(map[string]interface{})
-	if createAssetRequest.Credentials != nil {
-		customProperties["credentials"] = createAssetRequest.Credentials
+	if credentials != nil {
+		customProperties["credentials"] = *credentials
 	}
-	if createAssetRequest.ResourceMetadata.Geography != nil {
-		customProperties["geography"] = createAssetRequest.ResourceMetadata.Geography
+	if geography != nil {
+		customProperties["geography"] = *geography
 	}
-	if createAssetRequest.Details.DataFormat != nil {
-		customProperties["dataFormat"] = createAssetRequest.Details.DataFormat
+	if name != nil {
+		customProperties["name"] = *name
 	}
-	if createAssetRequest.ResourceMetadata.Name != nil {
-		customProperties["name"] = createAssetRequest.ResourceMetadata.Name
+	if owner != nil {
+		customProperties["owner"] = *owner
 	}
-	if createAssetRequest.ResourceMetadata.Owner != nil {
-		customProperties["owner"] = createAssetRequest.ResourceMetadata.Owner
+	if dataFormat != nil {
+		customProperties["dataFormat"] = *dataFormat
 	}
 
 	init := make(map[string]interface{})
@@ -169,7 +172,7 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 	var tags []client.TagLabel
 	// traverse createAssetRequest.ResourceMetadata.Tags
 	// use only the key, ignore the value (assume value is 'true')
-	for tagFQN := range createAssetRequest.ResourceMetadata.Tags {
+	for tagFQN := range requestTags {
 		tags = append(tags, getTag(ctx, c, tagFQN))
 	}
 
@@ -181,7 +184,7 @@ func (s *OpenMetadataApiService) enrichAsset(createAssetRequest models.CreateAss
 
 	columns := table.Columns
 
-	for _, col := range createAssetRequest.ResourceMetadata.Columns {
+	for _, col := range requestColumns {
 		if len(col.Tags) > 0 {
 			columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
 		}
