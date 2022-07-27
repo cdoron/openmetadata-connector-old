@@ -76,7 +76,7 @@ func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context,
 		count++
 		time.Sleep(time.Duration(s.SleepIntervalMS) * time.Millisecond)
 	}
-	fmt.Println("Too many retries. Could not find table. Giving up")
+	fmt.Println("Too many retries. Could not find table " + name + ". Giving up")
 	return false, nil
 }
 

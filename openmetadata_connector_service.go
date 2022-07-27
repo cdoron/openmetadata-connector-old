@@ -201,10 +201,11 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	// Asset not discovered yet
 	// Let's check whether there is an ingestion pipeline we can trigger
-	ingestionPipelineName := databaseServiceName + ".\"" + databaseServiceName + ".pipeline-" + *createAssetRequest.DestinationAssetID + "\""
+	ingestionPipelineName := "pipeline-" + createAssetRequest.DestinationCatalogID + "." + *createAssetRequest.DestinationAssetID
+	ingestionPipelineNameFull := databaseServiceName + ".\"" + ingestionPipelineName + "\""
 
 	var ingestionPipelineID string
-	ingestionPipelineID, found = s.findIngestionPipeline(ctx, c, ingestionPipelineName)
+	ingestionPipelineID, found = s.findIngestionPipeline(ctx, c, ingestionPipelineNameFull)
 
 	if !found {
 		// Let us create an ingestion pipeline
