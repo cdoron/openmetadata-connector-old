@@ -197,7 +197,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	// Let's check whether OM already has this asset
 	found = s.findAsset(ctx, c, assetId)
 	if found {
-		return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetId}), nil
+		return api.Response(http.StatusBadRequest, nil), errors.New("Asset already exists")
 	}
 
 	// Asset not discovered yet
