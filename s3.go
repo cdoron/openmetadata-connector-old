@@ -43,8 +43,9 @@ func (m *s3) OMTypeName() string {
 	return "Datalake"
 }
 
-func (m *s3) constructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest, assetName string) string {
+func (m *s3) constructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest) string {
 	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties["s3"].(map[string]interface{})
+	assetName := *createAssetRequest.DestinationAssetID
 	bucket, found := connectionProperties["bucket"]
 	if found {
 		return appendStrings(serviceName+".default."+bucket.(string), assetName)

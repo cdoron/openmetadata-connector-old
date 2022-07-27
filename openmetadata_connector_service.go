@@ -192,7 +192,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	}
 
 	// now that we know the of the database service, we can determine the asset name in OpenMetadata
-	assetId := dt.constructFullAssetId(databaseServiceName, createAssetRequest, *createAssetRequest.DestinationAssetID)
+	assetId := dt.constructFullAssetId(databaseServiceName, createAssetRequest)
 
 	// Let's check whether OM already has this asset
 	found = s.findAsset(ctx, c, assetId)
