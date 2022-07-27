@@ -1,5 +1,7 @@
 package main
 
+import models "github.com/fybrik/datacatalog-go-models"
+
 type s3 struct {
 	Translate map[string]string
 }
@@ -39,4 +41,14 @@ func (m *s3) translateFybrikConfigToOpenMetadataConfig(config map[string]interfa
 
 func (m *s3) OMTypeName() string {
 	return "Datalake"
+}
+
+func (m *s3) constructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest, assetName string) string {
+	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties["s3"].(map[string]interface{})
+	bucket, found := connectionProperties["bucket"]
+	if found {
+		return appendStrings(serviceName+".default."+bucket.(string), assetName)
+	} else {
+		return serviceName + ".default." + assetName
+	}
 }

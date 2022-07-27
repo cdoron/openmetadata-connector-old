@@ -191,7 +191,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	}
 
 	// now that we know the of the database service, we can determine the asset name in OpenMetadata
-	assetId := databaseServiceName + "." + *createAssetRequest.DestinationAssetID
+	assetId := dt.constructFullAssetId(databaseServiceName, createAssetRequest, *createAssetRequest.DestinationAssetID)
 
 	// Let's check whether OM already has this asset
 	found = s.findAsset(ctx, c, assetId)
@@ -202,7 +202,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	// Asset not discovered yet
 	// Let's check whether there is an ingestion pipeline we can trigger
 	ingestionPipelineName := "pipeline-" + createAssetRequest.DestinationCatalogID + "." + *createAssetRequest.DestinationAssetID
-	ingestionPipelineNameFull := databaseServiceName + ".\"" + ingestionPipelineName + "\""
+	ingestionPipelineNameFull := appendStrings(databaseServiceName, ingestionPipelineName)
 
 	var ingestionPipelineID string
 	ingestionPipelineID, found = s.findIngestionPipeline(ctx, c, ingestionPipelineNameFull)

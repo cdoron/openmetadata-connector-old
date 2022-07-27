@@ -1,6 +1,6 @@
 {
-  "destinationCatalogID": "fybrik-notebook-sample2",
-  "destinationAssetID": "paysim-csv",
+  "destinationCatalogID": "openmetadata",
+  "destinationAssetID": "fake.csv",
   "credentials": "/v1/kubernetes-secrets/paysim-csv?namespace=fybrik-notebook-sample",
   "details": {
     "dataFormat": "csv",
@@ -8,8 +8,9 @@
       "name": "s3",
       "s3": {
         "endpoint": "https://s3.eu-de.cloud-object-storage.appdomain.cloud",
-        "bucket": "demo-cdoron",
-        "objectKey": "PS_20174392719_1491204439457_log.csv"
+        "bucket": "fake-csv-bucket",
+        "access_key_id": "319b20d1205e4a64a783095c41cfdee5",
+        "secret_access_id": "0638e17f631f1ff059743354880e15b50c7297c1d1720c04"
       }
     }
   },

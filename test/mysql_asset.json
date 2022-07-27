@@ -1,6 +1,6 @@
 {
   "destinationCatalogID": "openmetadata",
-  "destinationAssetID": "default.testDB.Persons",
+  "destinationAssetID": "Persons",
   "credentials": "root:my-secret-pw",
   "details": {
     "connection": {
