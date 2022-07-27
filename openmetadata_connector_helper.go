@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"time"
 
 	client "github.com/fybrik/datacatalog-go-client"
@@ -12,8 +13,7 @@ import (
 
 func (s *OpenMetadataApiService) findService(ctx context.Context,
 	c *client.APIClient,
-	createAssetRequest models.CreateAssetRequest, connectionName string) (string, string, bool) {
-	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{})
+	connectionProperties map[string]interface{}, connectionName string) (string, string, bool) {
 
 	serviceList, _, err := c.DatabaseServiceApi.ListDatabaseServices(ctx).Execute()
 	if err != nil {
@@ -24,7 +24,7 @@ func (s *OpenMetadataApiService) findService(ctx context.Context,
 		found := true
 		// XXXX - Check type of service (for instance "mysql")
 		for property, value := range connectionProperties {
-			if service.Connection.Config[property] != value {
+			if !reflect.DeepEqual(service.Connection.Config[property], value) {
 				found = false
 				break
 			}
@@ -40,14 +40,13 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 	c *client.APIClient,
 	createAssetRequest models.CreateAssetRequest,
 	connectionName string,
-	dt databaseType) (string, string, error) {
+	OMConfig map[string]interface{},
+	OMTypeName string) (string, string, error) {
 	connection := client.NewDatabaseConnection()
-
-	OMConfig := dt.translateFybrikConfigToOpenMetadataConfig(createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{}))
 
 	connection.SetConfig(OMConfig)
 	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID+"-"+connectionName,
-		dt.OMTypeName())
+		OMTypeName)
 
 	databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 	if err != nil {
