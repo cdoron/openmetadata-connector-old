@@ -94,16 +94,12 @@ func (s *OpenMetadataApiService) findAsset(ctx context.Context, c *client.APICli
 }
 
 func (s *OpenMetadataApiService) findLatestAsset(ctx context.Context, c *client.APIClient, assetId string) (bool, *client.Table) {
-	fields := "tags"
-	include := "non-deleted"
-	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Fields(fields).Include(include).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.GetTableByFQN``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	found, table := s.findAsset(ctx, c, assetId)
+	if !found {
 		return false, nil
 	}
 	version := fmt.Sprintf("%f", *table.Version)
-	table, r, err = c.TablesApi.GetSpecificDatabaseVersion1(ctx, table.Id, version).Execute()
+	table, r, err := c.TablesApi.GetSpecificDatabaseVersion1(ctx, table.Id, version).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetSpecificDatabaseVersion1``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)

@@ -261,17 +261,9 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 
 	assetID := getAssetRequest.AssetID
 
-	found, table := s.findAsset(ctx, c, assetID)
+	found, table := s.findLatestAsset(ctx, c, assetID)
 	if !found {
 		return api.Response(http.StatusNotFound, nil), errors.New("Asset not found")
-	}
-
-	version := fmt.Sprintf("%f", *table.Version)
-	table, r, err := c.TablesApi.GetSpecificDatabaseVersion1(ctx, table.Id, version).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetSpecificDatabaseVersion1``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(http.StatusBadRequest, nil), err
 	}
 
 	assetResponse, err := s.constructAssetResponse(ctx, c, table)
