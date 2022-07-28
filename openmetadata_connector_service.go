@@ -308,7 +308,7 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 	}
 	ret.ResourceMetadata.Tags = tags
 
-	return api.Response(200, ret), nil
+	return api.Response(http.StatusOK, ret), nil
 }
 
 // UpdateAsset - This REST API updates data asset information in the data catalog configured in fybrik
@@ -321,23 +321,12 @@ func (s *OpenMetadataApiService) UpdateAsset(ctx context.Context, xRequestDataca
 		return api.Response(http.StatusNotFound, nil), errors.New("Asset not found")
 	}
 
-	s.enrichAsset(ctx, table, c, nil, nil, &updateAssetRequest.Name, &updateAssetRequest.Owner, nil,
+	success, err := s.enrichAsset(ctx, table, c, nil, nil, &updateAssetRequest.Name, &updateAssetRequest.Owner, nil,
 		updateAssetRequest.Tags, nil, updateAssetRequest.Columns)
 
-	// TODO - update UpdateAsset with the required logic for this service method.
-	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
+	if !success {
+		return api.Response(http.StatusBadRequest, nil), err
+	}
 
-	//TODO: Uncomment the next line to return response Response(200, UpdateAssetResponse{}) or use other options such as http.Ok ...
-	//return Response(200, UpdateAssetResponse{}), nil
-
-	//TODO: Uncomment the next line to return response Response(400, {}) or use other options such as http.Ok ...
-	//return Response(400, nil),nil
-
-	//TODO: Uncomment the next line to return response Response(404, {}) or use other options such as http.Ok ...
-	//return Response(404, nil),nil
-
-	//TODO: Uncomment the next line to return response Response(401, {}) or use other options such as http.Ok ...
-	//return Response(401, nil),nil
-
-	return api.Response(http.StatusNotImplemented, nil), errors.New("UpdateAsset method not implemented")
+	return api.Response(http.StatusOK, api.UpdateAssetResponse{Status: "Asset update operation successful"}), nil
 }
