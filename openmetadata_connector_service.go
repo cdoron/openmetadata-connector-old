@@ -264,21 +264,49 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 	//fields := "tableConstraints,tablePartition,usageSummary,owner,profileSample,customMetrics,tags,followers,joins,sampleData,viewDefinition,tableProfile,location,tableQueries,dataModel,tests" // string | Fields requested in the returned resource (optional)
 	fields := "tags"
 	include := "non-deleted" // string | Include all, deleted, or non-deleted entities. (optional) (default to "non-deleted")
-	respAsset, r, err := c.TablesApi.GetTableByFQN(ctx, assetID).Fields(fields).Include(include).Execute()
+	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetID).Fields(fields).Include(include).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetTableByFQN``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(http.StatusBadRequest, nil), err
+		return api.Response(http.StatusNotFound, nil), err
 	}
 
-	serviceType := strings.ToLower(*respAsset.ServiceType)
+	version := fmt.Sprintf("%f", *table.Version)
+	table, r, err = c.TablesApi.GetSpecificDatabaseVersion1(ctx, table.Id, version).Execute()
+
+	customProperties := table.GetExtension()
 
 	ret := &models.GetAssetResponse{}
-	ret.Details.Connection.Name = serviceType
-	dataFormat := "SQL"
-	ret.Details.DataFormat = &dataFormat
 
-	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, respAsset.Service.Id).Execute()
+	credentials := customProperties["credentials"]
+	if credentials != nil {
+		ret.Credentials = credentials.(string)
+	}
+	name := customProperties["name"]
+	if name != nil {
+		nameStr := name.(string)
+		ret.ResourceMetadata.Name = &nameStr
+	}
+
+	owner := customProperties["owner"]
+	if owner != nil {
+		ownerStr := owner.(string)
+		ret.ResourceMetadata.Owner = &ownerStr
+	}
+
+	geography := customProperties["geography"]
+	if geography != nil {
+		geographyStr := geography.(string)
+		ret.ResourceMetadata.Geography = &geographyStr
+	}
+
+	dataFormat := customProperties["dataFormat"]
+	if dataFormat != nil {
+		dataFormatStr := dataFormat.(string)
+		ret.Details.DataFormat = &dataFormatStr
+	}
+
+	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, table.Service.Id).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.GetDatabaseServiceByID``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -286,27 +314,33 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 	}
 
 	config := respService.Connection.GetConfig()
-
 	additionalProperties := make(map[string]interface{})
+	serviceType := strings.ToLower(*table.ServiceType)
+	ret.Details.Connection.Name = serviceType
 	additionalProperties[serviceType] = config
 	ret.Details.Connection.AdditionalProperties = additionalProperties
-	ret.ResourceMetadata.Name = respAsset.FullyQualifiedName
+	ret.ResourceMetadata.Name = table.FullyQualifiedName
 
-	ret.Credentials = config["username"].(string) + ":" + config["password"].(string)
+	for _, s := range table.Columns {
 
-	for _, s := range respAsset.Columns {
-		tags := make(map[string]interface{})
-		for _, t := range s.Tags {
-			tags[t.TagFQN] = "true"
+		if len(s.Tags) > 0 {
+			tags := make(map[string]interface{})
+			for _, t := range s.Tags {
+				tags[t.TagFQN] = "true"
+			}
+			ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name, Tags: tags})
+		} else {
+			ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name})
 		}
-		ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name, Tags: tags})
 	}
 
-	tags := make(map[string]interface{})
-	for _, s := range respAsset.Tags {
-		tags[s.TagFQN] = "true"
+	if len(table.Tags) > 0 {
+		tags := make(map[string]interface{})
+		for _, s := range table.Tags {
+			tags[s.TagFQN] = "true"
+		}
+		ret.ResourceMetadata.Tags = tags
 	}
-	ret.ResourceMetadata.Tags = tags
 
 	return api.Response(http.StatusOK, ret), nil
 }
