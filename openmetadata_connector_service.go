@@ -195,7 +195,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	assetId := dt.constructFullAssetId(databaseServiceName, createAssetRequest)
 
 	// Let's check whether OM already has this asset
-	found = s.findAsset(ctx, c, assetId)
+	found, _ = s.findAsset(ctx, c, assetId)
 	if found {
 		return api.Response(http.StatusBadRequest, nil), errors.New("Asset already exists")
 	}
@@ -234,7 +234,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		createAssetRequest.ResourceMetadata.Name, createAssetRequest.ResourceMetadata.Owner,
 		createAssetRequest.Details.DataFormat,
 		createAssetRequest.ResourceMetadata.Tags,
-		createAssetRequest.ResourceMetadata.Columns)
+		createAssetRequest.ResourceMetadata.Columns, nil)
 
 	if !success {
 		return api.Response(http.StatusBadRequest, nil), err
@@ -266,7 +266,7 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 	include := "non-deleted" // string | Include all, deleted, or non-deleted entities. (optional) (default to "non-deleted")
 	respAsset, r, err := c.TablesApi.GetTableByFQN(ctx, assetID).Fields(fields).Include(include).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetByName5``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetTableByFQN``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(http.StatusBadRequest, nil), err
 	}
@@ -280,7 +280,7 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 
 	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, respAsset.Service.Id).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.Get19``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.GetDatabaseServiceByID``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(http.StatusBadRequest, nil), err
 	}
@@ -313,6 +313,17 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 
 // UpdateAsset - This REST API updates data asset information in the data catalog configured in fybrik
 func (s *OpenMetadataApiService) UpdateAsset(ctx context.Context, xRequestDatacatalogUpdateCred string, updateAssetRequest api.UpdateAssetRequest) (api.ImplResponse, error) {
+	c := s.getOpenMetadataClient()
+	assetId := updateAssetRequest.AssetID
+
+	found, table := s.findAsset(ctx, c, assetId)
+	if !found {
+		return api.Response(http.StatusNotFound, nil), errors.New("Asset not found")
+	}
+
+	s.enrichAsset(ctx, table, c, nil, nil, &updateAssetRequest.Name, &updateAssetRequest.Owner, nil,
+		updateAssetRequest.Tags, nil, updateAssetRequest.Columns)
+
 	// TODO - update UpdateAsset with the required logic for this service method.
 	// Add api_default_service.go to the .openapi-generator-ignore to avoid overwriting this service implementation when updating open api generation.
 

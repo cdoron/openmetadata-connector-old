@@ -10,6 +10,7 @@ import (
 
 	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
+	api "github.com/fybrik/datacatalog-go/go"
 )
 
 func (s *OpenMetadataApiService) findService(ctx context.Context,
@@ -80,13 +81,13 @@ func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context,
 	return false, nil
 }
 
-func (s *OpenMetadataApiService) findAsset(ctx context.Context, c *client.APIClient, assetId string) bool {
-	_, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Execute()
+func (s *OpenMetadataApiService) findAsset(ctx context.Context, c *client.APIClient, assetId string) (bool, *client.Table) {
+	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.GetTableByFQN``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	return err == nil
+	return err == nil, table
 }
 
 func (s *OpenMetadataApiService) findIngestionPipeline(ctx context.Context, c *client.APIClient, ingestionPipelineName string) (string, bool) {
@@ -143,7 +144,8 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 	credentials *string, geography *string, name *string, owner *string,
 	dataFormat *string,
 	requestTags map[string]interface{},
-	requestColumns []models.ResourceColumn) (bool, error) {
+	requestColumnsModels []models.ResourceColumn,
+	requestColumnsApi []api.ResourceColumn) (bool, error) {
 	var requestBody []map[string]interface{}
 
 	customProperties := make(map[string]interface{})
@@ -184,7 +186,13 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 
 	columns := table.Columns
 
-	for _, col := range requestColumns {
+	for _, col := range requestColumnsModels {
+		if len(col.Tags) > 0 {
+			columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
+		}
+	}
+
+	for _, col := range requestColumnsApi {
 		if len(col.Tags) > 0 {
 			columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
 		}
