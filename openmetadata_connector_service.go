@@ -229,14 +229,14 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	// Now that OM is aware of the asset, we need to enrich it --
 	// add tags to asset and to columns, and populate the custom properties
-	success, err = s.enrichAsset(ctx, table, c,
+	err = s.enrichAsset(ctx, table, c,
 		createAssetRequest.Credentials, createAssetRequest.ResourceMetadata.Geography,
 		createAssetRequest.ResourceMetadata.Name, createAssetRequest.ResourceMetadata.Owner,
 		createAssetRequest.Details.DataFormat,
 		createAssetRequest.ResourceMetadata.Tags,
 		createAssetRequest.ResourceMetadata.Columns, nil)
 
-	if !success {
+	if err != nil {
 		return api.Response(http.StatusBadRequest, nil), err
 	}
 
@@ -321,10 +321,10 @@ func (s *OpenMetadataApiService) UpdateAsset(ctx context.Context, xRequestDataca
 		return api.Response(http.StatusNotFound, nil), errors.New("Asset not found")
 	}
 
-	success, err := s.enrichAsset(ctx, table, c, nil, nil, &updateAssetRequest.Name, &updateAssetRequest.Owner, nil,
+	err := s.enrichAsset(ctx, table, c, nil, nil, &updateAssetRequest.Name, &updateAssetRequest.Owner, nil,
 		updateAssetRequest.Tags, nil, updateAssetRequest.Columns)
 
-	if !success {
+	if err != nil {
 		return api.Response(http.StatusBadRequest, nil), err
 	}
 

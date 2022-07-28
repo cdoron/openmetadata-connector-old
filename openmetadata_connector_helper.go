@@ -145,7 +145,7 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 	dataFormat *string,
 	requestTags map[string]interface{},
 	requestColumnsModels []models.ResourceColumn,
-	requestColumnsApi []api.ResourceColumn) (bool, error) {
+	requestColumnsApi []api.ResourceColumn) error {
 	var requestBody []map[string]interface{}
 
 	customProperties := make(map[string]interface{})
@@ -208,10 +208,10 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.PatchTable``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
 func (s *OpenMetadataApiService) deleteAsset(ctx context.Context, c *client.APIClient, assetId string) (int, error) {
