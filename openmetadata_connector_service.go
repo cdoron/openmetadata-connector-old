@@ -261,88 +261,24 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 
 	assetID := getAssetRequest.AssetID
 
-	//fields := "tableConstraints,tablePartition,usageSummary,owner,profileSample,customMetrics,tags,followers,joins,sampleData,viewDefinition,tableProfile,location,tableQueries,dataModel,tests" // string | Fields requested in the returned resource (optional)
-	fields := "tags"
-	include := "non-deleted" // string | Include all, deleted, or non-deleted entities. (optional) (default to "non-deleted")
-	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetID).Fields(fields).Include(include).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetTableByFQN``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		return api.Response(http.StatusNotFound, nil), err
+	found, table := s.findAsset(ctx, c, assetID)
+	if !found {
+		return api.Response(http.StatusNotFound, nil), errors.New("Asset not found")
 	}
 
 	version := fmt.Sprintf("%f", *table.Version)
-	table, r, err = c.TablesApi.GetSpecificDatabaseVersion1(ctx, table.Id, version).Execute()
-
-	customProperties := table.GetExtension()
-
-	ret := &models.GetAssetResponse{}
-
-	credentials := customProperties["credentials"]
-	if credentials != nil {
-		ret.Credentials = credentials.(string)
-	}
-	name := customProperties["name"]
-	if name != nil {
-		nameStr := name.(string)
-		ret.ResourceMetadata.Name = &nameStr
-	}
-
-	owner := customProperties["owner"]
-	if owner != nil {
-		ownerStr := owner.(string)
-		ret.ResourceMetadata.Owner = &ownerStr
-	}
-
-	geography := customProperties["geography"]
-	if geography != nil {
-		geographyStr := geography.(string)
-		ret.ResourceMetadata.Geography = &geographyStr
-	}
-
-	dataFormat := customProperties["dataFormat"]
-	if dataFormat != nil {
-		dataFormatStr := dataFormat.(string)
-		ret.Details.DataFormat = &dataFormatStr
-	}
-
-	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, table.Service.Id).Execute()
+	table, r, err := c.TablesApi.GetSpecificDatabaseVersion1(ctx, table.Id, version).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.GetDatabaseServiceByID``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetSpecificDatabaseVersion1``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 		return api.Response(http.StatusBadRequest, nil), err
 	}
 
-	config := respService.Connection.GetConfig()
-	additionalProperties := make(map[string]interface{})
-	serviceType := strings.ToLower(*table.ServiceType)
-	ret.Details.Connection.Name = serviceType
-	additionalProperties[serviceType] = config
-	ret.Details.Connection.AdditionalProperties = additionalProperties
-	ret.ResourceMetadata.Name = table.FullyQualifiedName
-
-	for _, s := range table.Columns {
-
-		if len(s.Tags) > 0 {
-			tags := make(map[string]interface{})
-			for _, t := range s.Tags {
-				tags[stripTag(t.TagFQN)] = "true"
-			}
-			ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name, Tags: tags})
-		} else {
-			ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name})
-		}
+	assetResponse, err := s.constructAssetResponse(ctx, c, table)
+	if err != nil {
+		return api.Response(http.StatusBadRequest, nil), err
 	}
-
-	if len(table.Tags) > 0 {
-		tags := make(map[string]interface{})
-		for _, s := range table.Tags {
-			tags[stripTag(s.TagFQN)] = "true"
-		}
-		ret.ResourceMetadata.Tags = tags
-	}
-
-	return api.Response(http.StatusOK, ret), nil
+	return api.Response(http.StatusOK, assetResponse), nil
 }
 
 // UpdateAsset - This REST API updates data asset information in the data catalog configured in fybrik

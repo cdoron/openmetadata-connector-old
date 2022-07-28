@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	client "github.com/fybrik/datacatalog-go-client"
@@ -82,7 +83,9 @@ func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context,
 }
 
 func (s *OpenMetadataApiService) findAsset(ctx context.Context, c *client.APIClient, assetId string) (bool, *client.Table) {
-	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Execute()
+	fields := "tags"
+	include := "non-deleted"
+	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Fields(fields).Include(include).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.GetTableByFQN``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -229,4 +232,77 @@ func (s *OpenMetadataApiService) deleteAsset(ctx context.Context, c *client.APIC
 		return http.StatusBadRequest, err
 	}
 	return http.StatusOK, nil
+}
+
+func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
+	c *client.APIClient,
+	table *client.Table) (*models.GetAssetResponse, error) {
+	ret := &models.GetAssetResponse{}
+	customProperties := table.GetExtension()
+
+	credentials := customProperties["credentials"]
+	if credentials != nil {
+		ret.Credentials = credentials.(string)
+	}
+	name := customProperties["name"]
+	if name != nil {
+		nameStr := name.(string)
+		ret.ResourceMetadata.Name = &nameStr
+	}
+
+	owner := customProperties["owner"]
+	if owner != nil {
+		ownerStr := owner.(string)
+		ret.ResourceMetadata.Owner = &ownerStr
+	}
+
+	geography := customProperties["geography"]
+	if geography != nil {
+		geographyStr := geography.(string)
+		ret.ResourceMetadata.Geography = &geographyStr
+	}
+
+	dataFormat := customProperties["dataFormat"]
+	if dataFormat != nil {
+		dataFormatStr := dataFormat.(string)
+		ret.Details.DataFormat = &dataFormatStr
+	}
+
+	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, table.Service.Id).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.GetDatabaseServiceByID``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return nil, err
+	}
+
+	config := respService.Connection.GetConfig()
+	additionalProperties := make(map[string]interface{})
+	serviceType := strings.ToLower(*table.ServiceType)
+	ret.Details.Connection.Name = serviceType
+	additionalProperties[serviceType] = config
+	ret.Details.Connection.AdditionalProperties = additionalProperties
+	ret.ResourceMetadata.Name = table.FullyQualifiedName
+
+	for _, s := range table.Columns {
+
+		if len(s.Tags) > 0 {
+			tags := make(map[string]interface{})
+			for _, t := range s.Tags {
+				tags[stripTag(t.TagFQN)] = "true"
+			}
+			ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name, Tags: tags})
+		} else {
+			ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name})
+		}
+	}
+
+	if len(table.Tags) > 0 {
+		tags := make(map[string]interface{})
+		for _, s := range table.Tags {
+			tags[stripTag(s.TagFQN)] = "true"
+		}
+		ret.ResourceMetadata.Tags = tags
+	}
+
+	return ret, nil
 }
