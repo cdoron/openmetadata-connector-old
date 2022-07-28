@@ -15,11 +15,11 @@ func stripTag(tag string) string {
 }
 
 func updateCustomProperty(customProperties map[string]interface{}, orig map[string]interface{}, key string, value *string) {
-	if value != nil {
+	if value != nil && *value != "" {
 		customProperties[key] = *value
 		return
 	}
-	if v, ok := orig[key]; ok {
+	if v, ok := orig[key]; ok && v != "" {
 		customProperties[key] = v
 	}
 }
