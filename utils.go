@@ -9,3 +9,7 @@ func appendStrings(a string, b string) string {
 		return a + "." + b
 	}
 }
+
+func stripTag(tag string) string {
+	return strings.TrimPrefix(tag, "Fybrik.")
+}

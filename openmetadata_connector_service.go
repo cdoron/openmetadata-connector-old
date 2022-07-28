@@ -326,7 +326,7 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 		if len(s.Tags) > 0 {
 			tags := make(map[string]interface{})
 			for _, t := range s.Tags {
-				tags[t.TagFQN] = "true"
+				tags[stripTag(t.TagFQN)] = "true"
 			}
 			ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name, Tags: tags})
 		} else {
@@ -337,7 +337,7 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 	if len(table.Tags) > 0 {
 		tags := make(map[string]interface{})
 		for _, s := range table.Tags {
-			tags[s.TagFQN] = "true"
+			tags[stripTag(s.TagFQN)] = "true"
 		}
 		ret.ResourceMetadata.Tags = tags
 	}
