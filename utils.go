@@ -13,3 +13,13 @@ func appendStrings(a string, b string) string {
 func stripTag(tag string) string {
 	return strings.TrimPrefix(tag, "Fybrik.")
 }
+
+func updateCustomProperty(customProperties map[string]interface{}, orig map[string]interface{}, key string, value *string) {
+	if value != nil {
+		customProperties[key] = *value
+		return
+	}
+	if v, ok := orig[key]; ok {
+		customProperties[key] = v
+	}
+}

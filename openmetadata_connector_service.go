@@ -286,7 +286,7 @@ func (s *OpenMetadataApiService) UpdateAsset(ctx context.Context, xRequestDataca
 	c := s.getOpenMetadataClient()
 	assetId := updateAssetRequest.AssetID
 
-	found, table := s.findAsset(ctx, c, assetId)
+	found, table := s.findLatestAsset(ctx, c, assetId)
 	if !found {
 		return api.Response(http.StatusNotFound, nil), errors.New("Asset not found")
 	}

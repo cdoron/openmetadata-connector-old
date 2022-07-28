@@ -93,6 +93,25 @@ func (s *OpenMetadataApiService) findAsset(ctx context.Context, c *client.APICli
 	return err == nil, table
 }
 
+func (s *OpenMetadataApiService) findLatestAsset(ctx context.Context, c *client.APIClient, assetId string) (bool, *client.Table) {
+	fields := "tags"
+	include := "non-deleted"
+	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Fields(fields).Include(include).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.GetTableByFQN``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return false, nil
+	}
+	version := fmt.Sprintf("%f", *table.Version)
+	table, r, err = c.TablesApi.GetSpecificDatabaseVersion1(ctx, table.Id, version).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetSpecificDatabaseVersion1``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return false, nil
+	}
+	return true, table
+}
+
 func (s *OpenMetadataApiService) findIngestionPipeline(ctx context.Context, c *client.APIClient, ingestionPipelineName string) (string, bool) {
 	pipeline, _, err := c.IngestionPipelinesApi.GetSpecificIngestionPipelineByFQN(ctx, ingestionPipelineName).Execute()
 	if err != nil {
@@ -152,21 +171,11 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 	var requestBody []map[string]interface{}
 
 	customProperties := make(map[string]interface{})
-	if credentials != nil {
-		customProperties["credentials"] = *credentials
-	}
-	if geography != nil {
-		customProperties["geography"] = *geography
-	}
-	if name != nil {
-		customProperties["name"] = *name
-	}
-	if owner != nil {
-		customProperties["owner"] = *owner
-	}
-	if dataFormat != nil {
-		customProperties["dataFormat"] = *dataFormat
-	}
+	updateCustomProperty(customProperties, table.Extension, "credentials", credentials)
+	updateCustomProperty(customProperties, table.Extension, "geography", geography)
+	updateCustomProperty(customProperties, table.Extension, "name", name)
+	updateCustomProperty(customProperties, table.Extension, "owner", owner)
+	updateCustomProperty(customProperties, table.Extension, "dataFormat", dataFormat)
 
 	init := make(map[string]interface{})
 	init["op"] = "add"
@@ -281,7 +290,6 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 	ret.Details.Connection.Name = serviceType
 	additionalProperties[serviceType] = config
 	ret.Details.Connection.AdditionalProperties = additionalProperties
-	ret.ResourceMetadata.Name = table.FullyQualifiedName
 
 	for _, s := range table.Columns {
 
