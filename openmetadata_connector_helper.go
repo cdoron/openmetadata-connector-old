@@ -183,38 +183,42 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 	init["value"] = customProperties
 	requestBody = append(requestBody, init)
 
-	var tags []client.TagLabel
-	// traverse createAssetRequest.ResourceMetadata.Tags
-	// use only the key, ignore the value (assume value is 'true')
-	for tagFQN := range requestTags {
-		tags = append(tags, getTag(ctx, c, tagFQN))
-	}
-
-	tagsUpdate := make(map[string]interface{})
-	tagsUpdate["op"] = "add"
-	tagsUpdate["path"] = "/tags"
-	tagsUpdate["value"] = tags
-	requestBody = append(requestBody, tagsUpdate)
-
-	columns := table.Columns
-
-	for _, col := range requestColumnsModels {
-		if len(col.Tags) > 0 {
-			columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
+	if requestTags != nil {
+		var tags []client.TagLabel
+		// traverse createAssetRequest.ResourceMetadata.Tags
+		// use only the key, ignore the value (assume value is 'true')
+		for tagFQN := range requestTags {
+			tags = append(tags, getTag(ctx, c, tagFQN))
 		}
+
+		tagsUpdate := make(map[string]interface{})
+		tagsUpdate["op"] = "add"
+		tagsUpdate["path"] = "/tags"
+		tagsUpdate["value"] = tags
+		requestBody = append(requestBody, tagsUpdate)
 	}
 
-	for _, col := range requestColumnsApi {
-		if len(col.Tags) > 0 {
-			columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
+	if requestColumnsModels != nil || requestColumnsApi != nil {
+		columns := table.Columns
+
+		for _, col := range requestColumnsModels {
+			if len(col.Tags) > 0 {
+				columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
+			}
 		}
-	}
 
-	columnUpdate := make(map[string]interface{})
-	columnUpdate["op"] = "add"
-	columnUpdate["path"] = "/columns"
-	columnUpdate["value"] = columns
-	requestBody = append(requestBody, columnUpdate)
+		for _, col := range requestColumnsApi {
+			if len(col.Tags) > 0 {
+				columns = tagColumn(ctx, c, columns, col.Name, col.Tags)
+			}
+		}
+
+		columnUpdate := make(map[string]interface{})
+		columnUpdate["op"] = "add"
+		columnUpdate["path"] = "/columns"
+		columnUpdate["value"] = columns
+		requestBody = append(requestBody, columnUpdate)
+	}
 
 	resp, err := c.TablesApi.PatchTable(ctx, table.Id).RequestBody(requestBody).Execute()
 	if err != nil {
