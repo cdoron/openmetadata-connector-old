@@ -9,6 +9,10 @@ func (m *mysql) translateFybrikConfigToOpenMetadataConfig(config map[string]inte
 	return config
 }
 
+func (m *mysql) translateOpenMetadataConfigToFybrikConfig(config map[string]interface{}) map[string]interface{} {
+	return config
+}
+
 func (m *mysql) OMTypeName() string {
 	return "Mysql"
 }
