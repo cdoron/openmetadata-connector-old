@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"reflect"
-	"strings"
 	"time"
 
 	client "github.com/fybrik/datacatalog-go-client"
@@ -278,6 +278,8 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 		ret.Details.DataFormat = &dataFormatStr
 	}
 
+	connectionType := customProperties["connectionType"].(string)
+
 	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, table.Service.Id).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.GetDatabaseServiceByID``: %v\n", err)
@@ -285,11 +287,16 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 		return nil, err
 	}
 
-	config := respService.Connection.GetConfig()
+	dt, found := s.NameToDatabaseStruct[connectionType]
+	if !found {
+		return nil, errors.New("Unrecognized connection type: " + connectionType)
+	}
+
+	config := dt.translateOpenMetadataConfigToFybrikConfig(respService.Connection.GetConfig())
+
 	additionalProperties := make(map[string]interface{})
-	serviceType := strings.ToLower(*table.ServiceType)
-	ret.Details.Connection.Name = serviceType
-	additionalProperties[serviceType] = config
+	ret.Details.Connection.Name = connectionType
+	additionalProperties[connectionType] = config
 	ret.Details.Connection.AdditionalProperties = additionalProperties
 
 	for _, s := range table.Columns {

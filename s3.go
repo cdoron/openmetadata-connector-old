@@ -48,19 +48,16 @@ func (m *s3) translateFybrikConfigToOpenMetadataConfig(config map[string]interfa
 
 func (m *s3) translateOpenMetadataConfigToFybrikConfig(config map[string]interface{}) map[string]interface{} {
 	ret := make(map[string]interface{})
-	ret["name"] = "s3"
 
-	dataLakeConfig := config["datalake"].(map[string]interface{})
-	securityConfig := dataLakeConfig["configSource"].(map[string]interface{})["securityConfig"].(map[string]interface{})
+	securityConfig := config["configSource"].(map[string]interface{})["securityConfig"].(map[string]interface{})
 
-	ret["s3"] = make(map[string]interface{})
 	for key, value := range securityConfig {
 		if translation, found := m.TranslateInv[key]; found {
-			ret["s3"].(map[string]interface{})[translation] = value
+			ret[translation] = value
 		}
 	}
-	if value, found := dataLakeConfig["bucketName"]; found {
-		ret["s3"].(map[string]interface{})["bucket"] = value
+	if value, found := config["bucketName"]; found {
+		ret["bucket"] = value
 	}
 
 	return ret
