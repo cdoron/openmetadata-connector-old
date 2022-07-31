@@ -74,6 +74,9 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 		"The vault plugin path where the destination data credentials will be stored as kubernetes secrets", "credentials",
 		*client.NewEntityReference(stringID, "string"))).Execute()
 	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Connection type, e.g.: s3 or mysql", "connectionType",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
 		"Name of the resource", "name",
 		*client.NewEntityReference(stringID, "string"))).Execute()
 	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
@@ -166,11 +169,11 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	xRequestDatacatalogWriteCred string,
 	createAssetRequest models.CreateAssetRequest) (api.ImplResponse, error) {
 
-	connectionName := createAssetRequest.Details.Connection.Name
+	connectionType := createAssetRequest.Details.Connection.Name
 
-	dt, found := s.NameToDatabaseStruct[connectionName]
+	dt, found := s.NameToDatabaseStruct[connectionType]
 	if !found {
-		return api.Response(http.StatusBadRequest, nil), errors.New("currently, " + connectionName +
+		return api.Response(http.StatusBadRequest, nil), errors.New("currently, " + connectionType +
 			" connection type not supported")
 	}
 
@@ -181,11 +184,11 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	var err error
 
 	// Let us begin with checking whether the database service already exists
-	OMConfig := dt.translateFybrikConfigToOpenMetadataConfig(createAssetRequest.Details.GetConnection().AdditionalProperties[connectionName].(map[string]interface{}))
-	databaseServiceId, databaseServiceName, found = s.findService(ctx, c, OMConfig, connectionName)
+	OMConfig := dt.translateFybrikConfigToOpenMetadataConfig(createAssetRequest.Details.GetConnection().AdditionalProperties[connectionType].(map[string]interface{}))
+	databaseServiceId, databaseServiceName, found = s.findService(ctx, c, OMConfig, connectionType)
 	if !found {
 		// If does not exist, let us create database service
-		databaseServiceId, databaseServiceName, err = s.createDatabaseService(ctx, c, createAssetRequest, connectionName, OMConfig, dt.OMTypeName())
+		databaseServiceId, databaseServiceName, err = s.createDatabaseService(ctx, c, createAssetRequest, connectionType, OMConfig, dt.OMTypeName())
 		if err != nil {
 			return api.Response(http.StatusBadRequest, nil), err
 		}
@@ -234,7 +237,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		createAssetRequest.ResourceMetadata.Name, createAssetRequest.ResourceMetadata.Owner,
 		createAssetRequest.Details.DataFormat,
 		createAssetRequest.ResourceMetadata.Tags,
-		createAssetRequest.ResourceMetadata.Columns, nil)
+		createAssetRequest.ResourceMetadata.Columns, nil, connectionType)
 
 	if err != nil {
 		return api.Response(http.StatusBadRequest, nil), err
@@ -284,7 +287,7 @@ func (s *OpenMetadataApiService) UpdateAsset(ctx context.Context, xRequestDataca
 	}
 
 	err := s.enrichAsset(ctx, table, c, nil, nil, &updateAssetRequest.Name, &updateAssetRequest.Owner, nil,
-		updateAssetRequest.Tags, nil, updateAssetRequest.Columns)
+		updateAssetRequest.Tags, nil, updateAssetRequest.Columns, "")
 
 	if err != nil {
 		return api.Response(http.StatusBadRequest, nil), err

@@ -163,7 +163,7 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 	dataFormat *string,
 	requestTags map[string]interface{},
 	requestColumnsModels []models.ResourceColumn,
-	requestColumnsApi []api.ResourceColumn) error {
+	requestColumnsApi []api.ResourceColumn, connectionType string) error {
 	var requestBody []map[string]interface{}
 
 	customProperties := make(map[string]interface{})
@@ -172,6 +172,7 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 	updateCustomProperty(customProperties, table.Extension, "name", name)
 	updateCustomProperty(customProperties, table.Extension, "owner", owner)
 	updateCustomProperty(customProperties, table.Extension, "dataFormat", dataFormat)
+	updateCustomProperty(customProperties, table.Extension, "connectionType", &connectionType)
 
 	init := make(map[string]interface{})
 	init["op"] = "add"
