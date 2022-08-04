@@ -13,11 +13,11 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 
+	logging "fybrik.io/fybrik/pkg/logging"
 	api "github.com/fybrik/datacatalog-go/go"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -25,6 +25,7 @@ import (
 
 // RunCmd defines the command for running the connector
 func RunCmd() *cobra.Command {
+	logger := logging.LogInit(logging.CONNECTOR, "OpenMetadata Connector")
 	configFile := "/etc/conf/conf.yaml"
 	port := 8081
 	cmd := &cobra.Command{
@@ -46,14 +47,14 @@ func RunCmd() *cobra.Command {
 				return err
 			}
 
-			log.Printf("Server started")
+			logger.Info().Msg("Server started")
 
 			DefaultApiService := NewOpenMetadataApiService(conf)
 			DefaultApiController := NewOpenMetadataApiController(DefaultApiService)
 
 			router := api.NewRouter(DefaultApiController)
 
-			log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), router))
+			http.ListenAndServe(":"+strconv.Itoa(port), router)
 
 			return nil
 		},
