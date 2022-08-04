@@ -26,10 +26,11 @@ import (
 )
 
 type OpenMetadataApiService struct {
-	Endpoint             string
-	SleepIntervalMS      int
-	NumRetries           int
-	NameToDatabaseStruct map[string]database_types.DatabaseType
+	Endpoint                 string
+	SleepIntervalMS          int
+	NumRetries               int
+	NameToDatabaseStruct     map[string]database_types.DatabaseType
+	VaultClientConfiguration map[string]interface{}
 }
 
 func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
@@ -97,6 +98,11 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 	var SleepIntervalMS int
 	var NumRetries int
 
+	var vaultConf map[string]interface{} = nil
+	if vaultConfMap, ok := conf["vault"]; ok {
+		vaultConf = vaultConfMap.(map[string]interface{})
+	}
+
 	value, ok := conf["openmetadata_sleep_interval"]
 	if ok {
 		SleepIntervalMS = value.(int)
@@ -116,9 +122,10 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 	nameToDatabaseStruct["s3"] = database_types.NewS3()
 
 	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
-		SleepIntervalMS:      SleepIntervalMS,
-		NumRetries:           NumRetries,
-		NameToDatabaseStruct: nameToDatabaseStruct}
+		SleepIntervalMS:          SleepIntervalMS,
+		NumRetries:               NumRetries,
+		NameToDatabaseStruct:     nameToDatabaseStruct,
+		VaultClientConfiguration: vaultConf}
 
 	s.prepareOpenMetadataForFybrik()
 
