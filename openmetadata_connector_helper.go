@@ -54,8 +54,8 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 
 	databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return "", "", err
 	}
 	return databaseService.Id, *databaseService.FullyQualifiedName, nil
@@ -88,8 +88,8 @@ func (s *OpenMetadataApiService) findAsset(ctx context.Context, c *client.APICli
 	include := "non-deleted"
 	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Fields(fields).Include(include).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.GetTableByFQN``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.GetTableByFQN``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 	}
 	return err == nil, table
 }
@@ -102,8 +102,8 @@ func (s *OpenMetadataApiService) findLatestAsset(ctx context.Context, c *client.
 	version := fmt.Sprintf("%f", *table.Version)
 	table, r, err := c.TablesApi.GetSpecificDatabaseVersion1(ctx, table.Id, version).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetSpecificDatabaseVersion1``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `TablesApi.GetSpecificDatabaseVersion1``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return false, nil
 	}
 	return true, table
@@ -130,8 +130,8 @@ func (s *OpenMetadataApiService) createIngestionPipeline(ctx context.Context,
 
 	ingestionPipeline, r, err := c.IngestionPipelinesApi.CreateIngestionPipeline(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.CreateIngestionPipeline``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.CreateIngestionPipeline``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return "", err
 	}
 	return *ingestionPipeline.Id, nil
@@ -143,16 +143,16 @@ func (s *OpenMetadataApiService) deployAndRunIngestionPipeline(ctx context.Conte
 	// Let us deploy the ingestion pipeline
 	_, r, err := c.IngestionPipelinesApi.DeployIngestion(ctx, ingestionPipelineID).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.DeployIngestion``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.DeployIngestion``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return err
 	}
 
 	// Let us trigger a run of the ingestion pipeline
 	_, r, err = c.IngestionPipelinesApi.TriggerIngestionPipelineRun(ctx, ingestionPipelineID).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `IngestionPipelinesApi.TriggerIngestion``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.TriggerIngestion``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return err
 	}
 
@@ -220,8 +220,8 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 
 	resp, err := c.TablesApi.PatchTable(ctx, table.Id).RequestBody(requestBody).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.PatchTable``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `TablesApi.PatchTable``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", resp))
 		return err
 	}
 
@@ -231,15 +231,15 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 func (s *OpenMetadataApiService) deleteAsset(ctx context.Context, c *client.APIClient, assetId string) (int, error) {
 	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.GetTableByFQN``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `TablesApi.GetTableByFQN``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return http.StatusNotFound, err
 	}
 
 	r, err = c.TablesApi.DeleteTable(ctx, table.Id).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `TablesApi.DeleteTable``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `TablesApi.DeleteTable``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return http.StatusBadRequest, err
 	}
 	return http.StatusOK, nil
@@ -283,8 +283,8 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 
 	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, table.Service.Id).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ServicesApi.GetDatabaseServiceByID``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `ServicesApi.GetDatabaseServiceByID``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return nil, err
 	}
 
