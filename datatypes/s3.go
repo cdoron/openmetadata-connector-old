@@ -1,6 +1,9 @@
-package main
+package datatypes
 
-import models "github.com/fybrik/datacatalog-go-models"
+import (
+	models "github.com/fybrik/datacatalog-go-models"
+	utils "github.com/fybrik/openmetadata-connector/utils"
+)
 
 type s3 struct {
 	Translate    map[string]string
@@ -23,7 +26,7 @@ func NewS3() *s3 {
 	return &s3{Translate: translate, TranslateInv: translateInv}
 }
 
-func (m *s3) translateFybrikConfigToOpenMetadataConfig(config map[string]interface{}) map[string]interface{} {
+func (m *s3) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interface{}) map[string]interface{} {
 	ret := make(map[string]interface{})
 	configSourceMap := make(map[string]interface{})
 	ret["type"] = "Datalake"
@@ -46,7 +49,7 @@ func (m *s3) translateFybrikConfigToOpenMetadataConfig(config map[string]interfa
 	return ret
 }
 
-func (m *s3) translateOpenMetadataConfigToFybrikConfig(config map[string]interface{}) map[string]interface{} {
+func (m *s3) TranslateOpenMetadataConfigToFybrikConfig(config map[string]interface{}) map[string]interface{} {
 	ret := make(map[string]interface{})
 
 	securityConfig := config["configSource"].(map[string]interface{})["securityConfig"].(map[string]interface{})
@@ -67,12 +70,12 @@ func (m *s3) OMTypeName() string {
 	return "Datalake"
 }
 
-func (m *s3) constructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest) string {
+func (m *s3) ConstructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest) string {
 	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties["s3"].(map[string]interface{})
 	assetName := *createAssetRequest.DestinationAssetID
 	bucket, found := connectionProperties["bucket"]
 	if found {
-		return appendStrings(serviceName+".default."+bucket.(string), assetName)
+		return utils.AppendStrings(serviceName+".default."+bucket.(string), assetName)
 	} else {
 		return serviceName + ".default." + assetName
 	}

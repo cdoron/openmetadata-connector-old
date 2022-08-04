@@ -1,4 +1,4 @@
-package main
+package datatypes
 
 import models "github.com/fybrik/datacatalog-go-models"
 
@@ -17,11 +17,11 @@ func NewMysql() *mysql {
 	return &mysql{StandardFields: standardFields}
 }
 
-func (m *mysql) translateFybrikConfigToOpenMetadataConfig(config map[string]interface{}) map[string]interface{} {
+func (m *mysql) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interface{}) map[string]interface{} {
 	return config
 }
 
-func (m *mysql) translateOpenMetadataConfigToFybrikConfig(config map[string]interface{}) map[string]interface{} {
+func (m *mysql) TranslateOpenMetadataConfigToFybrikConfig(config map[string]interface{}) map[string]interface{} {
 	other := make(map[string]interface{})
 	ret := make(map[string]interface{})
 	for key, value := range config {
@@ -41,7 +41,7 @@ func (m *mysql) OMTypeName() string {
 	return "Mysql"
 }
 
-func (m *mysql) constructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest) string {
+func (m *mysql) ConstructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest) string {
 	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties["mysql"].(map[string]interface{})
 	assetName := *createAssetRequest.DestinationAssetID
 	databaseSchema, found := connectionProperties["databaseSchema"]

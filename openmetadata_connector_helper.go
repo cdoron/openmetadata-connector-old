@@ -12,6 +12,7 @@ import (
 	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
 	api "github.com/fybrik/datacatalog-go/go"
+	utils "github.com/fybrik/openmetadata-connector/utils"
 )
 
 func (s *OpenMetadataApiService) findService(ctx context.Context,
@@ -167,12 +168,12 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 	var requestBody []map[string]interface{}
 
 	customProperties := make(map[string]interface{})
-	updateCustomProperty(customProperties, table.Extension, "credentials", credentials)
-	updateCustomProperty(customProperties, table.Extension, "geography", geography)
-	updateCustomProperty(customProperties, table.Extension, "name", name)
-	updateCustomProperty(customProperties, table.Extension, "owner", owner)
-	updateCustomProperty(customProperties, table.Extension, "dataFormat", dataFormat)
-	updateCustomProperty(customProperties, table.Extension, "connectionType", &connectionType)
+	utils.UpdateCustomProperty(customProperties, table.Extension, "credentials", credentials)
+	utils.UpdateCustomProperty(customProperties, table.Extension, "geography", geography)
+	utils.UpdateCustomProperty(customProperties, table.Extension, "name", name)
+	utils.UpdateCustomProperty(customProperties, table.Extension, "owner", owner)
+	utils.UpdateCustomProperty(customProperties, table.Extension, "dataFormat", dataFormat)
+	utils.UpdateCustomProperty(customProperties, table.Extension, "connectionType", &connectionType)
 
 	init := make(map[string]interface{})
 	init["op"] = "add"
@@ -292,7 +293,7 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 		return nil, errors.New("Unrecognized connection type: " + connectionType)
 	}
 
-	config := dt.translateOpenMetadataConfigToFybrikConfig(respService.Connection.GetConfig())
+	config := dt.TranslateOpenMetadataConfigToFybrikConfig(respService.Connection.GetConfig())
 
 	additionalProperties := make(map[string]interface{})
 	ret.Details.Connection.Name = connectionType
@@ -304,7 +305,7 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 		if len(s.Tags) > 0 {
 			tags := make(map[string]interface{})
 			for _, t := range s.Tags {
-				tags[stripTag(t.TagFQN)] = "true"
+				tags[utils.StripTag(t.TagFQN)] = "true"
 			}
 			ret.ResourceMetadata.Columns = append(ret.ResourceMetadata.Columns, models.ResourceColumn{Name: s.Name, Tags: tags})
 		} else {
@@ -315,7 +316,7 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 	if len(table.Tags) > 0 {
 		tags := make(map[string]interface{})
 		for _, s := range table.Tags {
-			tags[stripTag(s.TagFQN)] = "true"
+			tags[utils.StripTag(s.TagFQN)] = "true"
 		}
 		ret.ResourceMetadata.Tags = tags
 	}

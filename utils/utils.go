@@ -1,8 +1,8 @@
-package main
+package utils
 
 import "strings"
 
-func appendStrings(a string, b string) string {
+func AppendStrings(a string, b string) string {
 	if strings.Contains(b, ".") {
 		return a + ".\"" + b + "\""
 	} else {
@@ -10,11 +10,11 @@ func appendStrings(a string, b string) string {
 	}
 }
 
-func stripTag(tag string) string {
+func StripTag(tag string) string {
 	return strings.TrimPrefix(tag, "Fybrik.")
 }
 
-func updateCustomProperty(customProperties map[string]interface{}, orig map[string]interface{}, key string, value *string) {
+func UpdateCustomProperty(customProperties map[string]interface{}, orig map[string]interface{}, key string, value *string) {
 	if value != nil && *value != "" {
 		customProperties[key] = *value
 		return

@@ -21,13 +21,15 @@ import (
 	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
 	api "github.com/fybrik/datacatalog-go/go"
+	datatypes "github.com/fybrik/openmetadata-connector/datatypes"
+	utils "github.com/fybrik/openmetadata-connector/utils"
 )
 
 type OpenMetadataApiService struct {
 	Endpoint             string
 	SleepIntervalMS      int
 	NumRetries           int
-	NameToDatabaseStruct map[string]databaseType
+	NameToDatabaseStruct map[string]datatypes.DatabaseType
 }
 
 func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
@@ -109,9 +111,9 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 		NumRetries = 20
 	}
 
-	nameToDatabaseStruct := make(map[string]databaseType)
-	nameToDatabaseStruct["mysql"] = NewMysql()
-	nameToDatabaseStruct["s3"] = NewS3()
+	nameToDatabaseStruct := make(map[string]datatypes.DatabaseType)
+	nameToDatabaseStruct["mysql"] = datatypes.NewMysql()
+	nameToDatabaseStruct["s3"] = datatypes.NewS3()
 
 	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
 		SleepIntervalMS:      SleepIntervalMS,
@@ -184,7 +186,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	var err error
 
 	// Let us begin with checking whether the database service already exists
-	OMConfig := dt.translateFybrikConfigToOpenMetadataConfig(createAssetRequest.Details.GetConnection().AdditionalProperties[connectionType].(map[string]interface{}))
+	OMConfig := dt.TranslateFybrikConfigToOpenMetadataConfig(createAssetRequest.Details.GetConnection().AdditionalProperties[connectionType].(map[string]interface{}))
 	databaseServiceId, databaseServiceName, found = s.findService(ctx, c, OMConfig, connectionType)
 	if !found {
 		// If does not exist, let us create database service
@@ -195,7 +197,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	}
 
 	// now that we know the of the database service, we can determine the asset name in OpenMetadata
-	assetId := dt.constructFullAssetId(databaseServiceName, createAssetRequest)
+	assetId := dt.ConstructFullAssetId(databaseServiceName, createAssetRequest)
 
 	// Let's check whether OM already has this asset
 	found, _ = s.findAsset(ctx, c, assetId)
@@ -206,7 +208,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	// Asset not discovered yet
 	// Let's check whether there is an ingestion pipeline we can trigger
 	ingestionPipelineName := "pipeline-" + createAssetRequest.DestinationCatalogID + "." + *createAssetRequest.DestinationAssetID
-	ingestionPipelineNameFull := appendStrings(databaseServiceName, ingestionPipelineName)
+	ingestionPipelineNameFull := utils.AppendStrings(databaseServiceName, ingestionPipelineName)
 
 	var ingestionPipelineID string
 	ingestionPipelineID, found = s.findIngestionPipeline(ctx, c, ingestionPipelineNameFull)
