@@ -45,7 +45,7 @@ func (v *VaultClient) GetToken() (string, error) {
 
 	j := make(map[string]string)
 	j["jwt"] = string(jwt)
-	j["role"] = "module"
+	j["role"] = v.role
 
 	full_auth_path := v.address + v.authPath
 	jsonStr, err := json.Marshal(j)

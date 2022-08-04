@@ -3,6 +3,7 @@ package database_types
 import (
 	models "github.com/fybrik/datacatalog-go-models"
 	utils "github.com/fybrik/openmetadata-connector/utils"
+	vault "github.com/fybrik/openmetadata-connector/vault"
 )
 
 type s3 struct {
@@ -27,6 +28,19 @@ func NewS3(vaultClientConfiguration map[interface{}]interface{}) *s3 {
 	return &s3{Translate: translate, TranslateInv: translateInv, VaultClientConfiguration: vaultClientConfiguration}
 }
 
+func getS3Credentials(vaultClientConfiguration map[interface{}]interface{}) (string, string) {
+	client := vault.NewVaultClient(vaultClientConfiguration)
+	token, err := client.GetToken()
+	if err != nil {
+		return "", ""
+	}
+	secret, err := client.GetSecret(token, "/v1/kubernetes-secrets/paysim-csv?namespace=default")
+	if err != nil {
+		return "", ""
+	}
+	return vault.ExtractS3CredentialsFromSecret(secret)
+}
+
 func (m *s3) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interface{}) map[string]interface{} {
 	ret := make(map[string]interface{})
 	configSourceMap := make(map[string]interface{})
@@ -42,6 +56,14 @@ func (m *s3) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interfa
 		translation, found := m.Translate[key]
 		if found {
 			securityMap[translation] = value
+		}
+	}
+
+	if m.VaultClientConfiguration != nil {
+		awsAccessKeyId, awsSecretAccessKey := getS3Credentials(m.VaultClientConfiguration)
+		if awsAccessKeyId != "" && awsSecretAccessKey != "" {
+			securityMap["awsAccessKeyId"] = awsAccessKeyId
+			securityMap["awsSecretAccessKey"] = awsSecretAccessKey
 		}
 	}
 
