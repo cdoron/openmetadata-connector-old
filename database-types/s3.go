@@ -75,7 +75,12 @@ func (m *s3) ConstructFullAssetId(serviceName string, createAssetRequest models.
 	assetName := *createAssetRequest.DestinationAssetID
 	bucket, found := connectionProperties["bucket"]
 	if found {
-		return utils.AppendStrings(serviceName+".default."+bucket.(string), assetName)
+		objectKey, found := connectionProperties["object_key"]
+		if found {
+			return utils.AppendStrings(serviceName+".default."+bucket.(string), objectKey.(string))
+		} else {
+			return utils.AppendStrings(serviceName+".default."+bucket.(string), assetName)
+		}
 	} else {
 		return serviceName + ".default." + assetName
 	}
