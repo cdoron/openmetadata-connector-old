@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	client "github.com/fybrik/datacatalog-go-client"
@@ -23,6 +22,7 @@ import (
 	api "github.com/fybrik/datacatalog-go/go"
 	database_types "github.com/fybrik/openmetadata-connector/database-types"
 	utils "github.com/fybrik/openmetadata-connector/utils"
+	"github.com/rs/zerolog"
 )
 
 type OpenMetadataApiService struct {
@@ -30,6 +30,7 @@ type OpenMetadataApiService struct {
 	SleepIntervalMS      int
 	NumRetries           int
 	NameToDatabaseStruct map[string]database_types.DatabaseType
+	logger               zerolog.Logger
 }
 
 func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
@@ -45,8 +46,8 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 
 	typeList, r, err := c.MetadataApi.ListTypes(ctx).Category("entity").Limit(100).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `MetadataApi.ListTypes``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `MetadataApi.ListTypes``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return
 	}
 	for _, t := range typeList.Data {
@@ -60,8 +61,8 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 	var stringID string
 	typeList, r, err = c.MetadataApi.ListTypes(ctx).Category("field").Limit(100).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `MetadataApi.ListTypes``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `MetadataApi.ListTypes``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return
 	}
 	for _, t := range typeList.Data {
@@ -93,7 +94,7 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 }
 
 // NewOpenMetadataApiService creates a new api service
-func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApiServicer {
+func NewOpenMetadataApiService(conf map[interface{}]interface{}, logger zerolog.Logger) OpenMetadataApiServicer {
 	var SleepIntervalMS int
 	var NumRetries int
 
@@ -123,7 +124,8 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
 		SleepIntervalMS:      SleepIntervalMS,
 		NumRetries:           NumRetries,
-		NameToDatabaseStruct: nameToDatabaseStruct}
+		NameToDatabaseStruct: nameToDatabaseStruct,
+		logger:               logger}
 
 	s.prepareOpenMetadataForFybrik()
 
