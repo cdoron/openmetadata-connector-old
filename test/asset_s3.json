@@ -1,0 +1,68 @@
+{
+  "destinationCatalogID": "openmetadata",
+  "destinationAssetID": "not-important",
+  "credentials": "/v1/kubernetes-secrets/paysim-csv?namespace=default",
+  "details": {
+    "dataFormat": "csv",
+    "connection": {
+      "name": "s3",
+      "s3": {
+        "endpoint": "https://s3.eu-de.cloud-object-storage.appdomain.cloud",
+        "region": "eu-de",
+        "bucket": "fake-csv-bucket",
+	"object_key": "fake.csv"
+      }
+    }
+  },
+  "resourceMetadata": {
+    "name": "Fake data",
+    "geography": "Hogwarts",
+    "tags": {
+      "fakecsv": "true"
+    },
+    "columns": [
+      {
+        "name": "name",
+        "tags": {
+          "name": "true"
+        }
+      },
+      {
+        "name": "age",
+        "tags": {
+          "age": "true"
+        }
+      },
+      {
+        "name": "building_number",
+        "tags": {
+          "building_number": "true"
+        }
+      },
+      {
+        "name": "street",
+        "tags": {
+          "street": "true"
+        }
+      },
+      {
+        "name": "city",
+        "tags": {
+          "city": "true"
+        }
+      },
+      {
+        "name": "country",
+        "tags": {
+          "country": "true"
+        }
+      },
+      {
+        "name": "postcode",
+        "tags": {
+          "postcode": "true"
+        }
+      }
+    ]
+  }
+}

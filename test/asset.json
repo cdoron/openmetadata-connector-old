@@ -1,43 +1,49 @@
 {
-  "destinationCatalogID": "fybrik-notebook-sample2",
-  "destinationAssetID": "paysim-csv",
+  "destinationCatalogID": "openmetadata",
+  "destinationAssetID": "Persons",
   "credentials": "/v1/kubernetes-secrets/paysim-csv?namespace=fybrik-notebook-sample",
   "details": {
-    "dataFormat": "csv",
+    "dataFormat": "SQL",
     "connection": {
-      "name": "s3",
-      "s3": {
-        "endpoint": "https://s3.eu-de.cloud-object-storage.appdomain.cloud",
-        "bucket": "demo-cdoron",
-        "objectKey": "PS_20174392719_1491204439457_log.csv"
+      "name": "mysql",
+      "mysql": {
+        "databaseSchema": "testDB",
+        "hostPort": "172.16.240.1:1000",
+        "password": "my-secret-pw",
+        "scheme": "mysql+pymysql",
+        "username": "root"
       }
     }
   },
   "resourceMetadata": {
-    "name": "Synthetic Financial Datasets For Fraud Detection",
-    "geography": "theshire",
-    "tags": {
-      "finance": true
-    },
     "columns": [
       {
-        "name": "nameOrig",
+        "name": "PersonID"
+      },
+      {
+        "name": "LastName"
+      },
+      {
+        "name": "FirstName",
         "tags": {
-          "PII": true
+          "PII.NonSensitive": "true",
+          "financial": "true",
+          "PII.Sensitive": "true"
         }
       },
       {
-        "name": "oldbalanceOrg",
-        "tags": {
-          "PII": true
-        }
+        "name": "Address"
       },
       {
-        "name": "newbalanceOrig",
+        "name": "City",
         "tags": {
-          "PII": true
+          "PII.Sensitive": "true"
         }
       }
-    ]
+    ],
+    "name": "super cool table",
+    "tags": {
+      "PersonalData.SpecialCategory": "true"
+    }
   }
 }
