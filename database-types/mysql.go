@@ -1,4 +1,4 @@
-package datatypes
+package database_types
 
 import models "github.com/fybrik/datacatalog-go-models"
 

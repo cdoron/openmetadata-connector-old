@@ -21,7 +21,7 @@ import (
 	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
 	api "github.com/fybrik/datacatalog-go/go"
-	datatypes "github.com/fybrik/openmetadata-connector/datatypes"
+	database_types "github.com/fybrik/openmetadata-connector/database-types"
 	utils "github.com/fybrik/openmetadata-connector/utils"
 )
 
@@ -29,7 +29,7 @@ type OpenMetadataApiService struct {
 	Endpoint             string
 	SleepIntervalMS      int
 	NumRetries           int
-	NameToDatabaseStruct map[string]datatypes.DatabaseType
+	NameToDatabaseStruct map[string]database_types.DatabaseType
 }
 
 func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
@@ -111,9 +111,9 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 		NumRetries = 20
 	}
 
-	nameToDatabaseStruct := make(map[string]datatypes.DatabaseType)
-	nameToDatabaseStruct["mysql"] = datatypes.NewMysql()
-	nameToDatabaseStruct["s3"] = datatypes.NewS3()
+	nameToDatabaseStruct := make(map[string]database_types.DatabaseType)
+	nameToDatabaseStruct["mysql"] = database_types.NewMysql()
+	nameToDatabaseStruct["s3"] = database_types.NewS3()
 
 	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
 		SleepIntervalMS:      SleepIntervalMS,
