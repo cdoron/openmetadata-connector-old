@@ -193,7 +193,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	// Let us begin with checking whether the database service already exists
 	OMConfig := dt.TranslateFybrikConfigToOpenMetadataConfig(
 		createAssetRequest.Details.GetConnection().AdditionalProperties[connectionType].(map[string]interface{}),
-		*createAssetRequest.Credentials)
+		createAssetRequest.Credentials)
 	databaseServiceId, databaseServiceName, found = s.findService(ctx, c, OMConfig, connectionType)
 	if !found {
 		// If does not exist, let us create database service
