@@ -97,9 +97,9 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}) OpenMetadataApi
 	var SleepIntervalMS int
 	var NumRetries int
 
-	var vaultConf map[string]interface{} = nil
+	var vaultConf map[interface{}]interface{} = nil
 	if vaultConfMap, ok := conf["vault"]; ok {
-		vaultConf = vaultConfMap.(map[string]interface{})
+		vaultConf = vaultConfMap.(map[interface{}]interface{})
 	}
 
 	value, ok := conf["openmetadata_sleep_interval"]

@@ -8,10 +8,10 @@ import (
 type s3 struct {
 	Translate                map[string]string
 	TranslateInv             map[string]string
-	VaultClientConfiguration map[string]interface{}
+	VaultClientConfiguration map[interface{}]interface{}
 }
 
-func NewS3(vaultClientConfiguration map[string]interface{}) *s3 {
+func NewS3(vaultClientConfiguration map[interface{}]interface{}) *s3 {
 	translate := map[string]string{
 		"region":           "awsRegion",
 		"endpoint":         "endPointURL",
