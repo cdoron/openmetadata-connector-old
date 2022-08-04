@@ -28,20 +28,20 @@ func NewS3(vaultClientConfiguration map[interface{}]interface{}) *s3 {
 	return &s3{Translate: translate, TranslateInv: translateInv, VaultClientConfiguration: vaultClientConfiguration}
 }
 
-func getS3Credentials(vaultClientConfiguration map[interface{}]interface{}) (string, string) {
+func getS3Credentials(vaultClientConfiguration map[interface{}]interface{}, credentialsPath string) (string, string) {
 	client := vault.NewVaultClient(vaultClientConfiguration)
 	token, err := client.GetToken()
 	if err != nil {
 		return "", ""
 	}
-	secret, err := client.GetSecret(token, "/v1/kubernetes-secrets/paysim-csv?namespace=default")
+	secret, err := client.GetSecret(token, credentialsPath)
 	if err != nil {
 		return "", ""
 	}
 	return vault.ExtractS3CredentialsFromSecret(secret)
 }
 
-func (m *s3) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interface{}) map[string]interface{} {
+func (m *s3) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interface{}, credentialsPath string) map[string]interface{} {
 	ret := make(map[string]interface{})
 	configSourceMap := make(map[string]interface{})
 	ret["type"] = "Datalake"
@@ -60,7 +60,7 @@ func (m *s3) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interfa
 	}
 
 	if m.VaultClientConfiguration != nil {
-		awsAccessKeyId, awsSecretAccessKey := getS3Credentials(m.VaultClientConfiguration)
+		awsAccessKeyId, awsSecretAccessKey := getS3Credentials(m.VaultClientConfiguration, credentialsPath)
 		if awsAccessKeyId != "" && awsSecretAccessKey != "" {
 			securityMap["awsAccessKeyId"] = awsAccessKeyId
 			securityMap["awsSecretAccessKey"] = awsSecretAccessKey

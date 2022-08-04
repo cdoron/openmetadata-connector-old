@@ -81,7 +81,7 @@ func (v *VaultClient) GetSecret(token string, secretPath string) ([]byte, error)
 	req.Header.Set("X-Vault-Token", token)
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	if err != nil {
+	if err != nil || resp.StatusCode != http.StatusOK {
 		return nil, err
 	}
 

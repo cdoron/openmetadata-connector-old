@@ -17,7 +17,7 @@ func NewMysql() *mysql {
 	return &mysql{StandardFields: standardFields}
 }
 
-func (m *mysql) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interface{}) map[string]interface{} {
+func (m *mysql) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interface{}, credentials string) map[string]interface{} {
 	return config
 }
 
