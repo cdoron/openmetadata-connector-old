@@ -64,13 +64,13 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) (bool, *client.Table) {
 	count := 0
 	for {
-		fmt.Println("running GetTableByFQN")
+		s.logger.Info().Msg("running GetTableByFQN")
 		table, _, err := c.TablesApi.GetTableByFQN(ctx, name).Execute()
 		if err == nil {
-			fmt.Println("Found the table!")
+			s.logger.Info().Msg("Found the table!")
 			return true, table
 		} else {
-			fmt.Println("Could not find the table. Let's try again")
+			s.logger.Info().Msg("Could not find the table. Let's try again")
 		}
 
 		if count == s.NumRetries {
@@ -79,7 +79,7 @@ func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context,
 		count++
 		time.Sleep(time.Duration(s.SleepIntervalMS) * time.Millisecond)
 	}
-	fmt.Println("Too many retries. Could not find table " + name + ". Giving up")
+	s.logger.Info().Msg("Too many retries. Could not find table " + name + ". Giving up")
 	return false, nil
 }
 
