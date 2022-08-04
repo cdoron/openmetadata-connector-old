@@ -6,11 +6,12 @@ import (
 )
 
 type s3 struct {
-	Translate    map[string]string
-	TranslateInv map[string]string
+	Translate                map[string]string
+	TranslateInv             map[string]string
+	VaultClientConfiguration map[string]interface{}
 }
 
-func NewS3() *s3 {
+func NewS3(vaultClientConfiguration map[string]interface{}) *s3 {
 	translate := map[string]string{
 		"region":           "awsRegion",
 		"endpoint":         "endPointURL",
@@ -23,7 +24,7 @@ func NewS3() *s3 {
 		"awsAccessKeyId":     "access_key_id",
 		"awsSecretAccessKey": "secret_access_id",
 	}
-	return &s3{Translate: translate, TranslateInv: translateInv}
+	return &s3{Translate: translate, TranslateInv: translateInv, VaultClientConfiguration: vaultClientConfiguration}
 }
 
 func (m *s3) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interface{}) map[string]interface{} {
