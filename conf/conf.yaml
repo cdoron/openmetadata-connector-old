@@ -1,10 +1,8 @@
 uuid: 12345678
-openmetadata_endpoint: "http://localhost:8585/api"
+openmetadata_endpoint: "http://openmetadata.default:8585/api"
 openmetadata_sleep_interval: 100
-openmetadata_num_retries: 100
+openmetadata_num_retries: 1000
 
 vault:
-  address: http://localhost:8200
   authPath: /v1/auth/kubernetes/login
   role: module
-  jwt_file_path: /home/cdoron/openmetadata-connector/jwt/jwt
