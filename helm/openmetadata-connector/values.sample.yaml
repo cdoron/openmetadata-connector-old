@@ -1,0 +1,13 @@
+# Try it with `helm install --generate-name --dry-run -f helm/openmetadata-connector/values.sample.yaml helm/openmetadata-connector`
+labels:
+  name: 012d42539692bba841a7
+  namespace: default
+uuid: 12345678
+openmetadata_endpoint: http://openmetadata.default:8585/api
+openmetadata_sleep_interval: 100
+openmetadata_num_retries: 1000
+vault:
+  address: http://vault.fybrik-system:8200
+  authPath: /v1/auth/kubernetes/login
+  role: module
+  jwt_file_path: /var/run/secrets/kubernetes.io/serviceaccount/token

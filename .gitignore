@@ -2,4 +2,4 @@
 api/
 models/
 client/
-openmetadata-connector
+./openmetadata-connector

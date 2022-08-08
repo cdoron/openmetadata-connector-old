@@ -1,0 +1,11 @@
+uuid: {{ .Values.uuid | default "app-uuid-missing" }}
+openmetadata_endpoint: {{ .Values.openmetadata_endpoint | default "openmetadata_hostname-missing" }}
+openmetadata_sleep_interval: {{ .Values.openmetadata_sleep_interval | default 100 }}
+openmetadata_num_retries: {{ .Values.openmetadata_num_retries | default 1000 }}
+
+vault:
+  address: {{ .Values.vault.address | default "http://vault.fybrik-system:8200"}}
+  authPath: {{ .Values.vault.authPath | default "/v1/auth/kubernetes/login" }}
+  role: {{ .Values.vault.role | default "module" }}
+  jwt_file_path: {{ .Values.vault.jwt_file_path | default "/var/run/secrets/kubernetes.io/serviceaccount/token" }}
+  
