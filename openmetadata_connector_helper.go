@@ -12,8 +12,120 @@ import (
 	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
 	api "github.com/fybrik/datacatalog-go/go"
+	database_types "github.com/fybrik/openmetadata-connector/database-types"
 	utils "github.com/fybrik/openmetadata-connector/utils"
+	"github.com/rs/zerolog"
 )
+
+func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
+	ctx := context.Background()
+	c := s.getOpenMetadataClient()
+
+	// Create Tag Category for Fybrik
+	c.TagsApi.CreateTagCategory(ctx).CreateTagCategory(*client.NewCreateTagCategory("Classification",
+		"Parent Category for all Fybrik labels", "Fybrik")).Execute()
+
+	// Find the ID for the 'table' entity
+	var tableID string
+
+	typeList, r, err := c.MetadataApi.ListTypes(ctx).Category("entity").Limit(100).Execute()
+	if err != nil {
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `MetadataApi.ListTypes``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		return
+	}
+	for _, t := range typeList.Data {
+		if *t.FullyQualifiedName == "table" {
+			tableID = *t.Id
+			break
+		}
+	}
+
+	// Find the ID for the 'string' type
+	var stringID string
+	typeList, r, err = c.MetadataApi.ListTypes(ctx).Category("field").Limit(100).Execute()
+	if err != nil {
+		s.logger.Info().Msg(fmt.Sprintf("Error when calling `MetadataApi.ListTypes``: %v\n", err))
+		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		return
+	}
+	for _, t := range typeList.Data {
+		if *t.FullyQualifiedName == "string" {
+			stringID = *t.Id
+			break
+		}
+	}
+
+	// Add custom properties for tables
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"The vault plugin path where the destination data credentials will be stored as kubernetes secrets", "credentials",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Connection type, e.g.: s3 or mysql", "connectionType",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Name of the resource", "name",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Geography of the resource", "geography",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Owner of the resource", "owner",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
+		"Data format", "dataFormat",
+		*client.NewEntityReference(stringID, "string"))).Execute()
+}
+
+// NewOpenMetadataApiService creates a new api service
+func NewOpenMetadataApiService(conf map[interface{}]interface{}, logger zerolog.Logger) OpenMetadataApiServicer {
+	var SleepIntervalMS int
+	var NumRetries int
+
+	var vaultConf map[interface{}]interface{} = nil
+	if vaultConfMap, ok := conf["vault"]; ok {
+		vaultConf = vaultConfMap.(map[interface{}]interface{})
+	}
+
+	value, ok := conf["openmetadata_sleep_interval"]
+	if ok {
+		SleepIntervalMS = value.(int)
+	} else {
+		SleepIntervalMS = 500
+	}
+
+	value, ok = conf["openmetadata_num_retries"]
+	if ok {
+		NumRetries = value.(int)
+	} else {
+		NumRetries = 20
+	}
+
+	nameToDatabaseStruct := make(map[string]database_types.DatabaseType)
+	nameToDatabaseStruct["mysql"] = database_types.NewMysql()
+	nameToDatabaseStruct["s3"] = database_types.NewS3(vaultConf)
+
+	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
+		SleepIntervalMS:      SleepIntervalMS,
+		NumRetries:           NumRetries,
+		NameToDatabaseStruct: nameToDatabaseStruct,
+		logger:               logger}
+
+	s.prepareOpenMetadataForFybrik()
+
+	return s
+}
+
+func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
+	conf := client.Configuration{Servers: client.ServerConfigurations{
+		{
+			URL:         s.Endpoint,
+			Description: "Endpoint URL",
+		},
+	},
+	}
+	return client.NewAPIClient(&conf)
+}
 
 func (s *OpenMetadataApiService) findService(ctx context.Context,
 	c *client.APIClient,
