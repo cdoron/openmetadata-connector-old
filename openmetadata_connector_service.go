@@ -28,6 +28,7 @@ type OpenMetadataApiService struct {
 	NumRetries           int
 	NameToDatabaseStruct map[string]database_types.DatabaseType
 	logger               zerolog.Logger
+	NumRenameRetries     int
 }
 
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik

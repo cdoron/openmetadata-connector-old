@@ -140,7 +140,8 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}, logger zerolog.
 		SleepIntervalMS:      SleepIntervalMS,
 		NumRetries:           NumRetries,
 		NameToDatabaseStruct: nameToDatabaseStruct,
-		logger:               logger}
+		logger:               logger,
+		NumRenameRetries:     10}
 
 	s.prepareOpenMetadataForFybrik()
 
