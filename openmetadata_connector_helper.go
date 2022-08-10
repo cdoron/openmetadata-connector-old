@@ -202,6 +202,19 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 	if err != nil {
 		s.logger.Info().Msg(fmt.Sprintf("Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err))
 		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+
+		// let's try creating the service with different names
+		for i := 0; i < s.NumRenameRetries; i++ {
+			createDatabaseService.SetName(databaseServiceName + "=" + utils.RandStringBytes(5))
+			databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
+			if err == nil {
+				return databaseService.Id, *databaseService.FullyQualifiedName, nil
+			} else {
+				s.logger.Info().Msg(fmt.Sprintf("Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err))
+				s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+			}
+		}
+
 		return "", "", err
 	}
 	return databaseService.Id, *databaseService.FullyQualifiedName, nil
