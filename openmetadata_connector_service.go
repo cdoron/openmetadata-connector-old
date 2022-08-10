@@ -14,9 +14,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
-	client "github.com/fybrik/datacatalog-go-client"
 	models "github.com/fybrik/datacatalog-go-models"
 	api "github.com/fybrik/datacatalog-go/go"
 	database_types "github.com/fybrik/openmetadata-connector/database-types"
@@ -30,36 +28,6 @@ type OpenMetadataApiService struct {
 	NumRetries           int
 	NameToDatabaseStruct map[string]database_types.DatabaseType
 	logger               zerolog.Logger
-}
-
-func getTag(ctx context.Context, c *client.APIClient, tagFQN string) client.TagLabel {
-	if strings.Count(tagFQN, ".") == 0 {
-		// not a 'category.primary' or 'category.primary.secondary' format
-		// we will translate it to 'Fybrik.tagFQN'. We try to create it
-		// (whether it exists or not)
-		createTag := *client.NewCreateTag(tagFQN, tagFQN)
-		c.TagsApi.CreatePrimaryTag(ctx, "Fybrik").CreateTag(createTag).Execute()
-		tagFQN = "Fybrik." + tagFQN
-	}
-	return *&client.TagLabel{
-		LabelType: "Manual",
-		Source:    "Tag",
-		State:     "Confirmed",
-		TagFQN:    tagFQN,
-	}
-}
-
-func tagColumn(ctx context.Context, c *client.APIClient, columns []client.Column, colName string, colTags map[string]interface{}) []client.Column {
-	for i, col := range columns {
-		if col.Name == colName {
-			for tag := range colTags {
-				col.Tags = append(col.Tags, getTag(ctx, c, tag))
-			}
-			columns[i] = col
-			return columns
-		}
-	}
-	return columns
 }
 
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik

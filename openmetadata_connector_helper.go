@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	client "github.com/fybrik/datacatalog-go-client"
@@ -16,6 +17,36 @@ import (
 	utils "github.com/fybrik/openmetadata-connector/utils"
 	"github.com/rs/zerolog"
 )
+
+func getTag(ctx context.Context, c *client.APIClient, tagFQN string) client.TagLabel {
+	if strings.Count(tagFQN, ".") == 0 {
+		// not a 'category.primary' or 'category.primary.secondary' format
+		// we will translate it to 'Fybrik.tagFQN'. We try to create it
+		// (whether it exists or not)
+		createTag := *client.NewCreateTag(tagFQN, tagFQN)
+		c.TagsApi.CreatePrimaryTag(ctx, "Fybrik").CreateTag(createTag).Execute()
+		tagFQN = "Fybrik." + tagFQN
+	}
+	return *&client.TagLabel{
+		LabelType: "Manual",
+		Source:    "Tag",
+		State:     "Confirmed",
+		TagFQN:    tagFQN,
+	}
+}
+
+func tagColumn(ctx context.Context, c *client.APIClient, columns []client.Column, colName string, colTags map[string]interface{}) []client.Column {
+	for i, col := range columns {
+		if col.Name == colName {
+			for tag := range colTags {
+				col.Tags = append(col.Tags, getTag(ctx, c, tag))
+			}
+			columns[i] = col
+			return columns
+		}
+	}
+	return columns
+}
 
 func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 	ctx := context.Background()
