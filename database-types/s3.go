@@ -1,6 +1,8 @@
 package database_types
 
 import (
+	"reflect"
+
 	models "github.com/fybrik/datacatalog-go-models"
 	utils "github.com/fybrik/openmetadata-connector/utils"
 	vault "github.com/fybrik/openmetadata-connector/vault"
@@ -107,4 +109,13 @@ func (m *s3) ConstructFullAssetId(serviceName string, createAssetRequest models.
 	} else {
 		return serviceName + ".default." + assetName
 	}
+}
+
+func (m *s3) CompareServiceConfigurations(requestConfig map[string]interface{}, serviceConfig map[string]interface{}) bool {
+	for property, value := range requestConfig {
+		if !reflect.DeepEqual(serviceConfig[property], value) {
+			return false
+		}
+	}
+	return true
 }

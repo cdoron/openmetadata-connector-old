@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 
@@ -175,11 +174,9 @@ func (s *OpenMetadataApiService) findService(ctx context.Context,
 		if connectionType != service.ServiceType {
 			found = false
 		} else {
-			for property, value := range connectionProperties {
-				if !reflect.DeepEqual(service.Connection.Config[property], value) {
-					found = false
-					break
-				}
+			if !dt.CompareServiceConfigurations(connectionProperties, service.Connection.Config) {
+				found = false
+				break
 			}
 		}
 		if found {
@@ -207,7 +204,7 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 
 		// let's try creating the service with different names
 		for i := 0; i < s.NumRenameRetries; i++ {
-			createDatabaseService.SetName(databaseServiceName + "=" + utils.RandStringBytes(5))
+			createDatabaseService.SetName(databaseServiceName + "-" + utils.RandStringBytes(5))
 			databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 			if err == nil {
 				return databaseService.Id, *databaseService.FullyQualifiedName, nil

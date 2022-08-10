@@ -7,4 +7,5 @@ type DatabaseType interface {
 	TranslateFybrikConfigToOpenMetadataConfig(map[string]interface{}, *string) map[string]interface{}
 	TranslateOpenMetadataConfigToFybrikConfig(map[string]interface{}) map[string]interface{}
 	ConstructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest) string
+	CompareServiceConfigurations(map[string]interface{}, map[string]interface{}) bool
 }

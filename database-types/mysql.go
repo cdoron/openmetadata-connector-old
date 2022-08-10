@@ -1,6 +1,10 @@
 package database_types
 
-import models "github.com/fybrik/datacatalog-go-models"
+import (
+	"reflect"
+
+	models "github.com/fybrik/datacatalog-go-models"
+)
 
 type mysql struct {
 	StandardFields map[string]bool
@@ -50,4 +54,13 @@ func (m *mysql) ConstructFullAssetId(serviceName string, createAssetRequest mode
 	} else {
 		return serviceName + ".default." + assetName
 	}
+}
+
+func (m *mysql) CompareServiceConfigurations(requestConfig map[string]interface{}, serviceConfig map[string]interface{}) bool {
+	for property, value := range requestConfig {
+		if !reflect.DeepEqual(serviceConfig[property], value) {
+			return false
+		}
+	}
+	return true
 }
