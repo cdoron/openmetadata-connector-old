@@ -37,6 +37,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	connectionType := createAssetRequest.Details.Connection.Name
 
+	// check whether connectionType is one of the connection types supported by the OM connector
 	dt, found := s.NameToDatabaseStruct[connectionType]
 	if !found {
 		return api.Response(http.StatusBadRequest, nil), errors.New("currently, " + connectionType +

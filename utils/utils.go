@@ -1,6 +1,9 @@
 package utils
 
-import "strings"
+import (
+	"math/rand"
+	"strings"
+)
 
 func AppendStrings(a string, b string) string {
 	if strings.Contains(b, ".") {
@@ -22,4 +25,14 @@ func UpdateCustomProperty(customProperties map[string]interface{}, orig map[stri
 	if v, ok := orig[key]; ok && v != "" {
 		customProperties[key] = v
 	}
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }

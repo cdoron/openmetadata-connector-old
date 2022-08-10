@@ -189,11 +189,10 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 	connectionName string,
 	OMConfig map[string]interface{},
 	OMTypeName string) (string, string, error) {
-	connection := client.NewDatabaseConnection()
+	connection := client.DatabaseConnection{Config: OMConfig}
 
-	connection.SetConfig(OMConfig)
-	createDatabaseService := client.NewCreateDatabaseService(*connection, createAssetRequest.DestinationCatalogID+"-"+connectionName,
-		OMTypeName)
+	databaseServiceName := createAssetRequest.DestinationCatalogID + "-" + connectionName
+	createDatabaseService := client.NewCreateDatabaseService(connection, databaseServiceName, OMTypeName)
 
 	databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 	if err != nil {
