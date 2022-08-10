@@ -161,7 +161,9 @@ func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
 
 func (s *OpenMetadataApiService) findService(ctx context.Context,
 	c *client.APIClient,
-	connectionProperties map[string]interface{}, connectionType string) (string, string, bool) {
+	dt database_types.DatabaseType,
+	connectionProperties map[string]interface{}) (string, string, bool) {
+	connectionType := dt.OMTypeName()
 
 	serviceList, _, err := c.DatabaseServiceApi.ListDatabaseServices(ctx).Execute()
 	if err != nil {
