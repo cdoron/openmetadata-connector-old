@@ -111,10 +111,28 @@ func (m *s3) ConstructFullAssetId(serviceName string, createAssetRequest models.
 	}
 }
 
+func (m *s3) compareConfigSource(fromService map[string]interface{}, fromRequest map[string]interface{}) bool {
+	// ignore some fields, such as 'aws_token' which would appear only serviceSecurityConfig
+	serviceSecurityConfig := fromService["securityConfig"].(map[string]interface{})
+	requestSecurityConfig := fromRequest["securityConfig"].(map[string]interface{})
+	for property, value := range requestSecurityConfig {
+		if !reflect.DeepEqual(serviceSecurityConfig[property], value) {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *s3) CompareServiceConfigurations(requestConfig map[string]interface{}, serviceConfig map[string]interface{}) bool {
 	for property, value := range requestConfig {
-		if !reflect.DeepEqual(serviceConfig[property], value) {
-			return false
+		if property == "configSource" {
+			if !m.compareConfigSource(serviceConfig[property].(map[string]interface{}), value.(map[string]interface{})) {
+				return false
+			}
+		} else {
+			if !reflect.DeepEqual(serviceConfig[property], value) {
+				return false
+			}
 		}
 	}
 	return true
