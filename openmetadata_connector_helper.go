@@ -160,7 +160,7 @@ func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
 
 func (s *OpenMetadataApiService) findService(ctx context.Context,
 	c *client.APIClient,
-	connectionProperties map[string]interface{}, connectionName string) (string, string, bool) {
+	connectionProperties map[string]interface{}, connectionType string) (string, string, bool) {
 
 	serviceList, _, err := c.DatabaseServiceApi.ListDatabaseServices(ctx).Execute()
 	if err != nil {
@@ -169,11 +169,14 @@ func (s *OpenMetadataApiService) findService(ctx context.Context,
 	}
 	for _, service := range serviceList.Data {
 		found := true
-		// XXXX - Check type of service (for instance "mysql")
-		for property, value := range connectionProperties {
-			if !reflect.DeepEqual(service.Connection.Config[property], value) {
-				found = false
-				break
+		if connectionType != service.ServiceType {
+			found = false
+		} else {
+			for property, value := range connectionProperties {
+				if !reflect.DeepEqual(service.Connection.Config[property], value) {
+					found = false
+					break
+				}
 			}
 		}
 		if found {
