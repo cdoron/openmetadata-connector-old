@@ -126,7 +126,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		return api.Response(http.StatusBadRequest, nil), err
 	}
 
-	s.logger.Error().Msg("Asset creation and enrichment successful")
+	s.logger.Info().Msg("Asset creation and enrichment successful")
 	return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetId}), nil
 }
 
@@ -136,9 +136,11 @@ func (s *OpenMetadataApiService) DeleteAsset(ctx context.Context, xRequestDataca
 	errorCode, err := s.deleteAsset(ctx, c, deleteAssetRequest.AssetID)
 
 	if err != nil {
+		s.logger.Info().Msg("Asset deletion failed")
 		return api.Response(errorCode, nil), err
 	}
 
+	s.logger.Info().Msg("Asset deletion successful")
 	return api.Response(200, api.DeleteAssetResponse{}), nil
 }
 
@@ -150,13 +152,17 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 
 	found, table := s.findLatestAsset(ctx, c, assetID)
 	if !found {
+		s.logger.Error().Msg("Asset not found")
 		return api.Response(http.StatusNotFound, nil), errors.New("Asset not found")
 	}
 
 	assetResponse, err := s.constructAssetResponse(ctx, c, table)
 	if err != nil {
+		s.logger.Error().Msg("Construction of Asset Reponse failed")
 		return api.Response(http.StatusBadRequest, nil), err
 	}
+
+	s.logger.Info().Msg("GetAssetInfo successful")
 	return api.Response(http.StatusOK, assetResponse), nil
 }
 
@@ -167,15 +173,17 @@ func (s *OpenMetadataApiService) UpdateAsset(ctx context.Context, xRequestDataca
 
 	found, table := s.findLatestAsset(ctx, c, assetId)
 	if !found {
+		s.logger.Error().Msg("Asset not found")
 		return api.Response(http.StatusNotFound, nil), errors.New("Asset not found")
 	}
 
 	err := s.enrichAsset(ctx, table, c, nil, nil, &updateAssetRequest.Name, &updateAssetRequest.Owner, nil,
 		updateAssetRequest.Tags, nil, updateAssetRequest.Columns, "")
-
 	if err != nil {
+		s.logger.Error().Msg("Asset enrichment failed")
 		return api.Response(http.StatusBadRequest, nil), err
 	}
 
+	s.logger.Info().Msg("UpdateAsset successful")
 	return api.Response(http.StatusOK, api.UpdateAssetResponse{Status: "Asset update operation successful"}), nil
 }
