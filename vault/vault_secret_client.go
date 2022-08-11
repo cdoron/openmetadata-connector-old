@@ -18,7 +18,7 @@ type VaultClient struct {
 func NewVaultClient(conf map[interface{}]interface{}) VaultClient {
 	address := "http://vault.fybrik-system:8200"
 	authPath := "/v1/auth/kubernetes/login"
-	role := "module"
+	role := "fybrik"
 	jwt_file_path := "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	if conf != nil {
 		if addressConf, ok := conf["address"]; ok {
