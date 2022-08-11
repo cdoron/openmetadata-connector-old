@@ -41,6 +41,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	// check whether connectionType is one of the connection types supported by the OM connector
 	dt, found := s.NameToDatabaseStruct[connectionType]
 	if !found {
+		s.logger.Error().Msg("currently, " + connectionType + " connection type not supported")
 		return api.Response(http.StatusBadRequest, nil), errors.New("currently, " + connectionType +
 			" connection type not supported")
 	}
@@ -65,6 +66,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		// If does not exist, let us create database service
 		databaseServiceId, databaseServiceName, err = s.createDatabaseService(ctx, c, createAssetRequest, connectionType, OMConfig, dt.OMTypeName())
 		if err != nil {
+			s.logger.Error().Msg("unable to create Database Service for " + dt.OMTypeName() + " connection")
 			return api.Response(http.StatusBadRequest, nil), err
 		}
 	}
@@ -75,6 +77,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	// Let's check whether OM already has this asset
 	found, _ = s.findAsset(ctx, c, assetId)
 	if found {
+		s.logger.Error().Msg("Could not create asset, as asset already exists")
 		return api.Response(http.StatusBadRequest, nil), errors.New("Asset already exists")
 	}
 
@@ -88,9 +91,11 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	if !found {
 		// Let us create an ingestion pipeline
+		s.logger.Info().Msg("Ingestion Pipeline not found. Creating.")
 		ingestionPipelineID, err = s.createIngestionPipeline(ctx, c, databaseServiceId, ingestionPipelineName)
 	}
 
+	s.logger.Info().Msg("About to deploy and run ingestion Pipeline.")
 	// Let us deploy and run the ingestion pipeline
 	err = s.deployAndRunIngestionPipeline(ctx, c, ingestionPipelineID)
 	if err != nil {
@@ -99,12 +104,14 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 	// We just triggered a run of the ingestion pipeline.
 	// Now we need to wait until the asset is discovered
+	s.logger.Info().Msg("Waiting for asset to be discovered")
 	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetId)
 
 	if !success {
 		return api.Response(http.StatusBadRequest, nil), errors.New("Could not find table " + assetId)
 	}
 
+	s.logger.Info().Msg("Enriching asset with additional information (e.g. tags)")
 	// Now that OM is aware of the asset, we need to enrich it --
 	// add tags to asset and to columns, and populate the custom properties
 	err = s.enrichAsset(ctx, table, c,
@@ -115,9 +122,11 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		createAssetRequest.ResourceMetadata.Columns, nil, connectionType)
 
 	if err != nil {
+		s.logger.Error().Msg("Asset enrichment failed")
 		return api.Response(http.StatusBadRequest, nil), err
 	}
 
+	s.logger.Error().Msg("Asset creation and enrichment successful")
 	return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetId}), nil
 }
 
