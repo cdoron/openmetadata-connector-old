@@ -19,7 +19,7 @@ import (
 
 func getTag(ctx context.Context, c *client.APIClient, tagFQN string) client.TagLabel {
 	if strings.Count(tagFQN, ".") == 0 {
-		// not a 'category.primary' or 'category.primary.secondary' format
+		// Since this is not a 'category.primary' or 'category.primary.secondary' format,
 		// we will translate it to 'Fybrik.tagFQN'. We try to create it
 		// (whether it exists or not)
 		createTag := *client.NewCreateTag(tagFQN, tagFQN)
@@ -35,7 +35,9 @@ func getTag(ctx context.Context, c *client.APIClient, tagFQN string) client.TagL
 }
 
 func tagColumn(ctx context.Context, c *client.APIClient, columns []client.Column, colName string, colTags map[string]interface{}) []client.Column {
+	// traverse columns
 	for i, col := range columns {
+		// search for colName
 		if col.Name == colName {
 			for tag := range colTags {
 				col.Tags = append(col.Tags, getTag(ctx, c, tag))
@@ -60,8 +62,9 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 
 	typeList, r, err := c.MetadataApi.ListTypes(ctx).Category("entity").Limit(100).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `MetadataApi.ListTypes``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Fatal().Msg("Error in prepareOpenMetadataForFybrik")
+		s.logger.Fatal().Msg(fmt.Sprintf("Error when calling `MetadataApi.ListTypes``: %v\n", err))
+		s.logger.Fatal().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
 		return
 	}
 	for _, t := range typeList.Data {
@@ -69,6 +72,12 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 			tableID = *t.Id
 			break
 		}
+	}
+
+	if tableID == "" {
+		s.logger.Fatal().Msg("Error in prepareOpenMetadataForFybrik")
+		s.logger.Fatal().Msg("Failed to find the ID for entity 'table'")
+		return
 	}
 
 	// Find the ID for the 'string' type
@@ -84,6 +93,12 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 			stringID = *t.Id
 			break
 		}
+	}
+
+	if stringID == "" {
+		s.logger.Fatal().Msg("Error in prepareOpenMetadataForFybrik")
+		s.logger.Fatal().Msg("Failed to find the ID for entity 'string'")
+		return
 	}
 
 	// Add custom properties for tables
