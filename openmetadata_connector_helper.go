@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -122,7 +121,8 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 		*client.NewEntityReference(stringID, "string"))).Execute()
 }
 
-// NewOpenMetadataApiService creates a new api service
+// NewOpenMetadataApiService creates a new api service.
+// It is initialized base on the configuration
 func NewOpenMetadataApiService(conf map[interface{}]interface{}, logger zerolog.Logger) OpenMetadataApiServicer {
 	var SleepIntervalMS int
 	var NumRetries int
@@ -173,6 +173,7 @@ func (s *OpenMetadataApiService) getOpenMetadataClient() *client.APIClient {
 	return client.NewAPIClient(&conf)
 }
 
+// traverse database services looking for a service with identical configuration
 func (s *OpenMetadataApiService) findService(ctx context.Context,
 	c *client.APIClient,
 	dt database_types.DatabaseType,
@@ -181,23 +182,31 @@ func (s *OpenMetadataApiService) findService(ctx context.Context,
 
 	serviceList, _, err := c.DatabaseServiceApi.ListDatabaseServices(ctx).Execute()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Service does not exist yet")
+		s.logger.Warn().Msg("Could not list database services. Let us assume that we need to create a new service")
 		return "", "", false
 	}
+
+	// traverse existing services
 	for _, service := range serviceList.Data {
 		found := true
+
+		// first let us compare connection types (e.g. s3, mysql)
 		if connectionType != service.ServiceType {
 			found = false
 		} else {
+			// The connection types are identical.
+			// Let us compare configurations.
 			if !dt.CompareServiceConfigurations(connectionProperties, service.Connection.Config) {
 				found = false
 				break
 			}
 		}
 		if found {
+			s.logger.Trace().Msg("Found an identical database service")
 			return service.Id, *service.FullyQualifiedName, true
 		}
 	}
+	s.logger.Trace().Msg("Identical database service not found")
 	return "", "", false
 }
 
