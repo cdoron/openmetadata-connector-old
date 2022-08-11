@@ -403,6 +403,9 @@ func (s *OpenMetadataApiService) deleteAsset(ctx context.Context, c *client.APIC
 	return http.StatusOK, nil
 }
 
+// populate the values in a GetAssetResponse structure to include everything:
+// credentials, name, owner, geography, dataFormat, connection informations,
+// tags, and columns
 func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 	c *client.APIClient,
 	table *client.Table) (*models.GetAssetResponse, error) {

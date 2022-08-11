@@ -51,7 +51,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	var databaseServiceName string
 	var err error
 
-	// Let us begin by checking whether the database service already exists
+	// Let us begin by checking whether the database service already exists.
 	// step 1: Translate the fybrik connection information to the OM connection information.
 	//         This configuration information will later be used to create an OM connection
 	//         (if it does not already exist)
@@ -60,6 +60,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 		createAssetRequest.Credentials)
 	// step 2: compare the transformed connection information to that of all existing services
 	databaseServiceId, databaseServiceName, found = s.findService(ctx, c, dt, OMConfig)
+
 	if !found {
 		// If does not exist, let us create database service
 		databaseServiceId, databaseServiceName, err = s.createDatabaseService(ctx, c, createAssetRequest, connectionType, OMConfig, dt.OMTypeName())
@@ -97,7 +98,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	}
 
 	// We just triggered a run of the ingestion pipeline.
-	// Now we need to wait unti the asset is discovered
+	// Now we need to wait until the asset is discovered
 	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetId)
 
 	if !success {
