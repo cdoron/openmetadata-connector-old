@@ -36,7 +36,7 @@ push-to-kind:
 
 generate-code:
 	git clone https://github.com/fybrik/fybrik/
-	cd fybrik && git checkout v0.7.0
+	cd fybrik && git checkout v1.0.1
 	docker run --rm \
            -v ${PWD}:/local \
            -u "${USER_ID}:${GROUP_ID}" \
