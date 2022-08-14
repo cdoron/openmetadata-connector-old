@@ -39,10 +39,12 @@ func (s *s3) getS3Credentials(vaultClientConfiguration map[interface{}]interface
 	client := vault.NewVaultClient(vaultClientConfiguration, s.logger)
 	token, err := client.GetToken()
 	if err != nil {
+		s.logger.Error().Msg("GetToken failed")
 		return "", ""
 	}
 	secret, err := client.GetSecret(token, *credentialsPath)
 	if err != nil {
+		s.logger.Error().Msg("GetSecret failed")
 		return "", ""
 	}
 	return client.ExtractS3CredentialsFromSecret(secret)
