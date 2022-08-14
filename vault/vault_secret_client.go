@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/rs/zerolog"
 )
 
 type VaultClient struct {
@@ -13,9 +15,11 @@ type VaultClient struct {
 	authPath      string
 	role          string
 	jwt_file_path string
+	logger        zerolog.Logger
 }
 
-func NewVaultClient(conf map[interface{}]interface{}) VaultClient {
+// return structure for Vault Client, based on configuration
+func NewVaultClient(conf map[interface{}]interface{}, logger zerolog.Logger) VaultClient {
 	address := "http://vault.fybrik-system:8200"
 	authPath := "/v1/auth/kubernetes/login"
 	role := "fybrik"
@@ -34,10 +38,11 @@ func NewVaultClient(conf map[interface{}]interface{}) VaultClient {
 			jwt_file_path = jwtFilePathConf.(string)
 		}
 	}
-	return VaultClient{address: address, authPath: authPath, role: role, jwt_file_path: jwt_file_path}
+	return VaultClient{address: address, authPath: authPath, role: role, jwt_file_path: jwt_file_path, logger: logger}
 }
 
 func (v *VaultClient) GetToken() (string, error) {
+	// read JWT file. JWT is used to authenticate against Vault
 	jwt, err := os.ReadFile(v.jwt_file_path)
 	if err != nil {
 		return "", err
@@ -68,7 +73,11 @@ func (v *VaultClient) GetToken() (string, error) {
 		return "", err
 	}
 
-	token := responseMap["auth"].(map[string]interface{})["client_token"].(string)
+	var token string
+	if value, ok := responseMap["auth"]; ok {
+		token = value.(map[string]interface{})["client_token"].(string)
+	}
+
 	return token, nil
 }
 

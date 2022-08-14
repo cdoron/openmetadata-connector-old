@@ -6,15 +6,17 @@ import (
 	models "github.com/fybrik/datacatalog-go-models"
 	utils "github.com/fybrik/openmetadata-connector/utils"
 	vault "github.com/fybrik/openmetadata-connector/vault"
+	"github.com/rs/zerolog"
 )
 
 type s3 struct {
 	Translate                map[string]string
 	TranslateInv             map[string]string
 	VaultClientConfiguration map[interface{}]interface{}
+	logger                   zerolog.Logger
 }
 
-func NewS3(vaultClientConfiguration map[interface{}]interface{}) *s3 {
+func NewS3(vaultClientConfiguration map[interface{}]interface{}, logger zerolog.Logger) *s3 {
 	translate := map[string]string{
 		"region":           "awsRegion",
 		"endpoint":         "endPointURL",
@@ -27,11 +29,14 @@ func NewS3(vaultClientConfiguration map[interface{}]interface{}) *s3 {
 		"awsAccessKeyId":     "access_key_id",
 		"awsSecretAccessKey": "secret_access_id",
 	}
-	return &s3{Translate: translate, TranslateInv: translateInv, VaultClientConfiguration: vaultClientConfiguration}
+	return &s3{Translate: translate,
+		TranslateInv:             translateInv,
+		VaultClientConfiguration: vaultClientConfiguration,
+		logger:                   logger}
 }
 
-func getS3Credentials(vaultClientConfiguration map[interface{}]interface{}, credentialsPath *string) (string, string) {
-	client := vault.NewVaultClient(vaultClientConfiguration)
+func (m *s3) getS3Credentials(vaultClientConfiguration map[interface{}]interface{}, credentialsPath *string) (string, string) {
+	client := vault.NewVaultClient(vaultClientConfiguration, m.logger)
 	token, err := client.GetToken()
 	if err != nil {
 		return "", ""
@@ -62,7 +67,7 @@ func (m *s3) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interfa
 	}
 
 	if m.VaultClientConfiguration != nil && credentialsPath != nil {
-		awsAccessKeyId, awsSecretAccessKey := getS3Credentials(m.VaultClientConfiguration, credentialsPath)
+		awsAccessKeyId, awsSecretAccessKey := m.getS3Credentials(m.VaultClientConfiguration, credentialsPath)
 		if awsAccessKeyId != "" && awsSecretAccessKey != "" {
 			securityMap["awsAccessKeyId"] = awsAccessKeyId
 			securityMap["awsSecretAccessKey"] = awsSecretAccessKey

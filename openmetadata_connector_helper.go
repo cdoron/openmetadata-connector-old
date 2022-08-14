@@ -148,7 +148,7 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}, logger zerolog.
 
 	nameToDatabaseStruct := make(map[string]database_types.DatabaseType)
 	nameToDatabaseStruct["mysql"] = database_types.NewMysql()
-	nameToDatabaseStruct["s3"] = database_types.NewS3(vaultConf)
+	nameToDatabaseStruct["s3"] = database_types.NewS3(vaultConf, logger)
 
 	s := &OpenMetadataApiService{Endpoint: conf["openmetadata_endpoint"].(string),
 		SleepIntervalMS:      SleepIntervalMS,
