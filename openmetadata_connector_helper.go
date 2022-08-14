@@ -247,20 +247,22 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 		s.logger.Error().Msg("Failed to create Database Service. Giving up.")
 		return "", "", err
 	}
-	s.logger.Info().Msg("Succesded in creating Database Service: " + databaseServiceName)
+	s.logger.Info().Msg("Succeeded in creating Database Service: " + databaseServiceName)
 	return databaseService.Id, *databaseService.FullyQualifiedName, nil
 }
 
+// After deploying and running an ingestion pipeline, we need to wait until the asset is discovered.
+// We periodically query OM and then go to sleep. The number of queries and the sleep time is configurable.
 func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context, c *client.APIClient, name string) (bool, *client.Table) {
 	count := 0
+	s.logger.Trace().Msg("Entering a loop to check whether OM is aware of asset (byrunning GetTableByFQN)")
 	for {
-		s.logger.Info().Msg("running GetTableByFQN")
 		table, _, err := c.TablesApi.GetTableByFQN(ctx, name).Execute()
 		if err == nil {
-			s.logger.Info().Msg("Found the table!")
+			s.logger.Info().Msg("Asset found")
 			return true, table
 		} else {
-			s.logger.Info().Msg("Could not find the table. Let's try again")
+			s.logger.Trace().Msg("Could not find the table")
 		}
 
 		if count == s.NumRetries {
@@ -269,7 +271,7 @@ func (s *OpenMetadataApiService) waitUntilAssetIsDiscovered(ctx context.Context,
 		count++
 		time.Sleep(time.Duration(s.SleepIntervalMS) * time.Millisecond)
 	}
-	s.logger.Info().Msg("Too many retries. Could not find table " + name + ". Giving up")
+	s.logger.Error().Msg("Too many retries. Could not find table " + name + ". Giving up")
 	return false, nil
 }
 
@@ -278,8 +280,11 @@ func (s *OpenMetadataApiService) findAsset(ctx context.Context, c *client.APICli
 	include := "non-deleted"
 	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Fields(fields).Include(include).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.GetTableByFQN``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.GetTableByFQN``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Warn().Msg("Could not find asset: " + assetId)
+	} else {
+		s.logger.Info().Msg("Asset found: " + assetId)
 	}
 	return err == nil, table
 }
@@ -290,12 +295,17 @@ func (s *OpenMetadataApiService) findLatestAsset(ctx context.Context, c *client.
 		return false, nil
 	}
 	version := fmt.Sprintf("%f", *table.Version)
+	s.logger.Trace().Msg("Latest version of the asset: " + version)
+
 	table, r, err := c.TablesApi.GetSpecificDatabaseVersion1(ctx, table.Id, version).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `TablesApi.GetSpecificDatabaseVersion1``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `TablesApi.GetSpecificDatabaseVersion1``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Error().Msg("Could not retrieve latest version of the asset")
 		return false, nil
 	}
+
+	s.logger.Info().Msg("Succeeded in retrieving latest version of the asset")
 	return true, table
 }
 
