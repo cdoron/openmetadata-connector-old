@@ -312,8 +312,10 @@ func (s *OpenMetadataApiService) findLatestAsset(ctx context.Context, c *client.
 func (s *OpenMetadataApiService) findIngestionPipeline(ctx context.Context, c *client.APIClient, ingestionPipelineName string) (string, bool) {
 	pipeline, _, err := c.IngestionPipelinesApi.GetSpecificIngestionPipelineByFQN(ctx, ingestionPipelineName).Execute()
 	if err != nil {
+		s.logger.Info().Msg("Ingestion Pipeline not found: " + ingestionPipelineName)
 		return "", false
 	}
+	s.logger.Info().Msg("Ingestion Pipeline found: " + ingestionPipelineName)
 	return *pipeline.Id, true
 }
 
@@ -321,8 +323,7 @@ func (s *OpenMetadataApiService) createIngestionPipeline(ctx context.Context,
 	c *client.APIClient,
 	databaseServiceId string,
 	ingestionPipelineName string) (string, error) {
-	sourceConfig := *client.NewSourceConfig()
-	sourceConfig.SetConfig(map[string]interface{}{"type": "DatabaseMetadata"})
+	sourceConfig := client.SourceConfig{Config: map[string]interface{}{"type": "DatabaseMetadata"}}
 	newCreateIngestionPipeline := *client.NewCreateIngestionPipeline(*&client.AirflowConfig{},
 		ingestionPipelineName,
 		"metadata", *client.NewEntityReference(databaseServiceId, "databaseService"),
@@ -330,10 +331,12 @@ func (s *OpenMetadataApiService) createIngestionPipeline(ctx context.Context,
 
 	ingestionPipeline, r, err := c.IngestionPipelinesApi.CreateIngestionPipeline(ctx).CreateIngestionPipeline(newCreateIngestionPipeline).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.CreateIngestionPipeline``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.CreateIngestionPipeline``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Error().Msg("Failed to create Ingestion Pipeline: " + ingestionPipelineName + " for Database Service Id: " + databaseServiceId)
 		return "", err
 	}
+	s.logger.Info().Msg("Succeeded in creating Ingestion Pipeline: " + ingestionPipelineName + " for Database Service Id: " + databaseServiceId)
 	return *ingestionPipeline.Id, nil
 }
 
