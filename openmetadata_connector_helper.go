@@ -466,6 +466,17 @@ func (s *OpenMetadataApiService) deleteAsset(ctx context.Context, c *client.APIC
 func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 	c *client.APIClient,
 	table *client.Table) (*models.GetAssetResponse, error) {
+	// Let's begin by finding the Database Service.
+	// We need it for the connection information.
+	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, table.Service.Id).Execute()
+	if err != nil {
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `ServicesApi.GetDatabaseServiceByID``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Error().Msg("Could not find Database Service: " + table.Service.Id)
+		s.logger.Error().Msg("Therefore, unable to get connection information for asset: " + *table.FullyQualifiedName)
+		return nil, err
+	}
+
 	ret := &models.GetAssetResponse{}
 	customProperties := table.GetExtension()
 
@@ -499,13 +510,6 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 
 	connectionType := customProperties["connectionType"].(string)
 
-	respService, r, err := c.DatabaseServiceApi.GetDatabaseServiceByID(ctx, table.Service.Id).Execute()
-	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `ServicesApi.GetDatabaseServiceByID``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
-		return nil, err
-	}
-
 	dt, found := s.NameToDatabaseStruct[connectionType]
 	if !found {
 		return nil, errors.New("Unrecognized connection type: " + connectionType)
@@ -519,7 +523,6 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 	ret.Details.Connection.AdditionalProperties = additionalProperties
 
 	for _, s := range table.Columns {
-
 		if len(s.Tags) > 0 {
 			tags := make(map[string]interface{})
 			for _, t := range s.Tags {
@@ -539,5 +542,6 @@ func (s *OpenMetadataApiService) constructAssetResponse(ctx context.Context,
 		ret.ResourceMetadata.Tags = tags
 	}
 
+	s.logger.Info().Msg("Succesfully constructed asset response")
 	return ret, nil
 }
