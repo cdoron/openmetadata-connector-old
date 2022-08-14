@@ -223,23 +223,31 @@ func (s *OpenMetadataApiService) createDatabaseService(ctx context.Context,
 
 	databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Warn().Msg("Failed to create Database Service: " + databaseServiceName)
+		s.logger.Warn().Msg("Let us try again with a different name")
 
 		// let's try creating the service with different names
 		for i := 0; i < s.NumRenameRetries; i++ {
-			createDatabaseService.SetName(databaseServiceName + "-" + utils.RandStringBytes(5))
+			newName := databaseServiceName + "-" + utils.RandStringBytes(5)
+			createDatabaseService.SetName(newName)
+			s.logger.Info().Msg("Trying to create a Database Service: " + newName)
 			databaseService, r, err := c.DatabaseServiceApi.CreateDatabaseService(ctx).CreateDatabaseService(*createDatabaseService).Execute()
 			if err == nil {
+				s.logger.Info().Msg("Succesded in creating Database Service: " + newName)
 				return databaseService.Id, *databaseService.FullyQualifiedName, nil
 			} else {
-				s.logger.Info().Msg(fmt.Sprintf("Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err))
-				s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+				s.logger.Trace().Msg(fmt.Sprintf("Error when calling `ServicesApi.CreateDatabaseService``: %v\n", err))
+				s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+				s.logger.Warn().Msg("Failed to create Database Service: " + newName)
 			}
 		}
 
+		s.logger.Error().Msg("Failed to create Database Service. Giving up.")
 		return "", "", err
 	}
+	s.logger.Info().Msg("Succesded in creating Database Service: " + databaseServiceName)
 	return databaseService.Id, *databaseService.FullyQualifiedName, nil
 }
 
