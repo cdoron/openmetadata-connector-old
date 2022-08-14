@@ -346,22 +346,27 @@ func (s *OpenMetadataApiService) deployAndRunIngestionPipeline(ctx context.Conte
 	// Let us deploy the ingestion pipeline
 	_, r, err := c.IngestionPipelinesApi.DeployIngestion(ctx, ingestionPipelineID).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.DeployIngestion``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.DeployIngestion``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Error().Msg("Failed to deploy Ingestion Pipeline: " + ingestionPipelineID)
 		return err
 	}
 
 	// Let us trigger a run of the ingestion pipeline
 	_, r, err = c.IngestionPipelinesApi.TriggerIngestionPipelineRun(ctx, ingestionPipelineID).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.TriggerIngestion``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `IngestionPipelinesApi.TriggerIngestion``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Error().Msg("Failed to trigger Ingestion Pipeline run: " + ingestionPipelineID)
 		return err
 	}
 
+	s.logger.Info().Msg("Deploying and Running of Ingestion Pipeline successful")
 	return nil
 }
 
+// enrichAsset is called after asset is created, or during an updateAsset request
+// OM uses the JsonPatch format for updates
 func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.Table, c *client.APIClient,
 	credentials *string, geography *string, name *string, owner *string,
 	dataFormat *string,
@@ -378,11 +383,11 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 	utils.UpdateCustomProperty(customProperties, table.Extension, "dataFormat", dataFormat)
 	utils.UpdateCustomProperty(customProperties, table.Extension, "connectionType", &connectionType)
 
-	init := make(map[string]interface{})
-	init["op"] = "add"
-	init["path"] = "/extension"
-	init["value"] = customProperties
-	requestBody = append(requestBody, init)
+	propertiesUpdate := make(map[string]interface{})
+	propertiesUpdate["op"] = "add"
+	propertiesUpdate["path"] = "/extension"
+	propertiesUpdate["value"] = customProperties
+	requestBody = append(requestBody, propertiesUpdate)
 
 	if requestTags != nil {
 		var tags []client.TagLabel
@@ -423,28 +428,35 @@ func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.
 
 	resp, err := c.TablesApi.PatchTable(ctx, table.Id).RequestBody(requestBody).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `TablesApi.PatchTable``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", resp))
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `TablesApi.PatchTable``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", resp))
+		s.logger.Error().Msg("Asset Enrichment failed (using PatchTable)")
 		return err
 	}
 
+	s.logger.Info().Msg("Asset Enrichment succeeded")
 	return nil
 }
 
 func (s *OpenMetadataApiService) deleteAsset(ctx context.Context, c *client.APIClient, assetId string) (int, error) {
 	table, r, err := c.TablesApi.GetTableByFQN(ctx, assetId).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `TablesApi.GetTableByFQN``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `TablesApi.GetTableByFQN``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Error().Msg("Asset deletion failed -- asset not found")
 		return http.StatusNotFound, err
 	}
 
+	s.logger.Trace().Msg("deleteAsset -- asset found")
 	r, err = c.TablesApi.DeleteTable(ctx, table.Id).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `TablesApi.DeleteTable``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `TablesApi.DeleteTable``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Error().Msg("Asset deletion failed")
 		return http.StatusBadRequest, err
 	}
+
+	s.logger.Error().Msg("Asset deletion successful")
 	return http.StatusOK, nil
 }
 
