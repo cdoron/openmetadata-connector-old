@@ -45,7 +45,7 @@ func (m *s3) getS3Credentials(vaultClientConfiguration map[interface{}]interface
 	if err != nil {
 		return "", ""
 	}
-	return vault.ExtractS3CredentialsFromSecret(secret)
+	return client.ExtractS3CredentialsFromSecret(secret)
 }
 
 func (m *s3) TranslateFybrikConfigToOpenMetadataConfig(config map[string]interface{}, credentialsPath *string) map[string]interface{} {
