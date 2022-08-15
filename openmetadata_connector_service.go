@@ -15,11 +15,12 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/rs/zerolog"
+
 	models "github.com/fybrik/datacatalog-go-models"
 	api "github.com/fybrik/datacatalog-go/go"
 	database_types "github.com/fybrik/openmetadata-connector/database-types"
 	utils "github.com/fybrik/openmetadata-connector/utils"
-	"github.com/rs/zerolog"
 )
 
 type OpenMetadataApiService struct {
