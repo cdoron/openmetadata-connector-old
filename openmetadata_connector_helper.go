@@ -48,7 +48,7 @@ func tagColumn(ctx context.Context, c *client.APIClient, columns []client.Column
 	return columns
 }
 
-func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
+func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() bool {
 	ctx := context.Background()
 	c := s.getOpenMetadataClient()
 
@@ -61,10 +61,9 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 
 	typeList, r, err := c.MetadataApi.ListTypes(ctx).Category("entity").Limit(100).Execute()
 	if err != nil {
-		s.logger.Fatal().Msg("Error in prepareOpenMetadataForFybrik")
-		s.logger.Fatal().Msg(fmt.Sprintf("Error when calling `MetadataApi.ListTypes``: %v\n", err))
-		s.logger.Fatal().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
-		return
+		s.logger.Warn().Msg("Error in prepareOpenMetadataForFybrik")
+		s.logger.Warn().Msg("Most likely OpenMetadata is not up yet")
+		return false
 	}
 	for _, t := range typeList.Data {
 		if *t.FullyQualifiedName == "table" {
@@ -74,18 +73,18 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 	}
 
 	if tableID == "" {
-		s.logger.Fatal().Msg("Error in prepareOpenMetadataForFybrik")
-		s.logger.Fatal().Msg("Failed to find the ID for entity 'table'")
-		return
+		s.logger.Error().Msg("Error in prepareOpenMetadataForFybrik")
+		s.logger.Error().Msg("Failed to find the ID for entity 'table'")
+		return false
 	}
 
 	// Find the ID for the 'string' type
 	var stringID string
 	typeList, r, err = c.MetadataApi.ListTypes(ctx).Category("field").Limit(100).Execute()
 	if err != nil {
-		s.logger.Info().Msg(fmt.Sprintf("Error when calling `MetadataApi.ListTypes``: %v\n", err))
-		s.logger.Info().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
-		return
+		s.logger.Error().Msg(fmt.Sprintf("Error when calling `MetadataApi.ListTypes``: %v\n", err))
+		s.logger.Error().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		return false
 	}
 	for _, t := range typeList.Data {
 		if *t.FullyQualifiedName == "string" {
@@ -95,9 +94,9 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 	}
 
 	if stringID == "" {
-		s.logger.Fatal().Msg("Error in prepareOpenMetadataForFybrik")
-		s.logger.Fatal().Msg("Failed to find the ID for entity 'string'")
-		return
+		s.logger.Error().Msg("Error in prepareOpenMetadataForFybrik")
+		s.logger.Error().Msg("Failed to find the ID for entity 'string'")
+		return false
 	}
 
 	// Add custom properties for tables
@@ -119,6 +118,8 @@ func (s *OpenMetadataApiService) prepareOpenMetadataForFybrik() {
 	c.MetadataApi.AddProperty(ctx, tableID).CustomProperty(*client.NewCustomProperty(
 		"Data format", "dataFormat",
 		*client.NewEntityReference(stringID, "string"))).Execute()
+
+	return true
 }
 
 // NewOpenMetadataApiService creates a new api service.
@@ -157,7 +158,7 @@ func NewOpenMetadataApiService(conf map[interface{}]interface{}, logger zerolog.
 		logger:               logger,
 		NumRenameRetries:     10}
 
-	s.prepareOpenMetadataForFybrik()
+	s.initialized = s.prepareOpenMetadataForFybrik()
 
 	return s
 }

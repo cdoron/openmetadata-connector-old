@@ -30,12 +30,16 @@ type OpenMetadataApiService struct {
 	NameToDatabaseStruct map[string]database_types.DatabaseType
 	logger               zerolog.Logger
 	NumRenameRetries     int
+	initialized          bool
 }
 
 // CreateAsset - This REST API writes data asset information to the data catalog configured in fybrik
 func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	xRequestDatacatalogWriteCred string,
 	createAssetRequest models.CreateAssetRequest) (api.ImplResponse, error) {
+	if !s.initialized {
+		s.initialized = s.prepareOpenMetadataForFybrik()
+	}
 
 	connectionType := createAssetRequest.Details.Connection.Name
 
@@ -133,6 +137,10 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 
 // DeleteAsset - This REST API deletes data asset
 func (s *OpenMetadataApiService) DeleteAsset(ctx context.Context, xRequestDatacatalogCred string, deleteAssetRequest api.DeleteAssetRequest) (api.ImplResponse, error) {
+	if !s.initialized {
+		s.initialized = s.prepareOpenMetadataForFybrik()
+	}
+
 	c := s.getOpenMetadataClient()
 	errorCode, err := s.deleteAsset(ctx, c, deleteAssetRequest.AssetID)
 
@@ -147,6 +155,10 @@ func (s *OpenMetadataApiService) DeleteAsset(ctx context.Context, xRequestDataca
 
 // GetAssetInfo - This REST API gets data asset information from the data catalog configured in fybrik for the data sets indicated in FybrikApplication yaml
 func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatacatalogCred string, getAssetRequest api.GetAssetRequest) (api.ImplResponse, error) {
+	if !s.initialized {
+		s.initialized = s.prepareOpenMetadataForFybrik()
+	}
+
 	c := s.getOpenMetadataClient()
 
 	assetID := getAssetRequest.AssetID
@@ -169,6 +181,10 @@ func (s *OpenMetadataApiService) GetAssetInfo(ctx context.Context, xRequestDatac
 
 // UpdateAsset - This REST API updates data asset information in the data catalog configured in fybrik
 func (s *OpenMetadataApiService) UpdateAsset(ctx context.Context, xRequestDatacatalogUpdateCred string, updateAssetRequest api.UpdateAssetRequest) (api.ImplResponse, error) {
+	if !s.initialized {
+		s.initialized = s.prepareOpenMetadataForFybrik()
+	}
+
 	c := s.getOpenMetadataClient()
 	assetId := updateAssetRequest.AssetID
 
