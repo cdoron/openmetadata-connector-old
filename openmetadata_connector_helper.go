@@ -408,16 +408,19 @@ func (s *OpenMetadataApiService) findOrCreateDatabaseSchema(ctx context.Context,
 func (s *OpenMetadataApiService) createTable(ctx context.Context,
 	c *client.APIClient,
 	databaseSchemaId string,
-	tableName string) {
-	columns := []client.Column{*client.NewColumn("STRING", "building_number")}
+	tableName string,
+	columns []client.Column) (*client.Table, error) {
 	createTable := client.NewCreateTable(columns,
 		*client.NewEntityReference(databaseSchemaId, "databaseSchema"),
 		tableName)
-	_, r, err := c.TablesApi.CreateTable(ctx).CreateTable(*createTable).Execute()
+	table, r, err := c.TablesApi.CreateTable(ctx).CreateTable(*createTable).Execute()
 	if err != nil {
 		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `TablesApi.CreateTable``: %v\n", err))
 		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		s.logger.Error().Msg("createTable failed: " + tableName)
+		return nil, err
 	}
+	return table, nil
 }
 
 // enrichAsset is called after asset is created, or during an updateAsset request

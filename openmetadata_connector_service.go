@@ -130,27 +130,30 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	databaseSchemaId, _ := s.findOrCreateDatabaseSchema(ctx, c, databaseId,
 		dt.DatabaseSchemaFQN(databaseServiceName, createAssetRequest),
 		dt.DatabaseSchemaName(createAssetRequest))
-	s.createTable(ctx, c, databaseSchemaId, dt.TableName(createAssetRequest))
 
-	/*
-		s.logger.Info().Msg("Enriching asset with additional information (e.g. tags)")
-		// Now that OM is aware of the asset, we need to enrich it --
-		// add tags to asset and to columns, and populate the custom properties
-		err = s.enrichAsset(ctx, table, c,
-			createAssetRequest.Credentials, createAssetRequest.ResourceMetadata.Geography,
-			createAssetRequest.ResourceMetadata.Name, createAssetRequest.ResourceMetadata.Owner,
-			createAssetRequest.Details.DataFormat,
-			createAssetRequest.ResourceMetadata.Tags,
-			createAssetRequest.ResourceMetadata.Columns, nil, connectionType)
+	columns := utils.ExtractColumns(createAssetRequest.ResourceMetadata.Columns)
+	table, err := s.createTable(ctx, c, databaseSchemaId, dt.TableName(createAssetRequest), columns)
+	if err != nil {
+		return api.Response(http.StatusBadRequest, nil), err
+	}
 
-		if err != nil {
-			s.logger.Error().Msg("Asset enrichment failed")
-			return api.Response(http.StatusBadRequest, nil), err
-		}
+	s.logger.Info().Msg("Enriching asset with additional information (e.g. tags)")
+	// Now that OM is aware of the asset, we need to enrich it --
+	// add tags to asset and to columns, and populate the custom properties
+	err = s.enrichAsset(ctx, table, c,
+		createAssetRequest.Credentials, createAssetRequest.ResourceMetadata.Geography,
+		createAssetRequest.ResourceMetadata.Name, createAssetRequest.ResourceMetadata.Owner,
+		createAssetRequest.Details.DataFormat,
+		createAssetRequest.ResourceMetadata.Tags,
+		createAssetRequest.ResourceMetadata.Columns, nil, connectionType)
 
-		s.logger.Info().Msg("Asset creation and enrichment successful")
+	if err != nil {
+		s.logger.Error().Msg("Asset enrichment failed")
+		return api.Response(http.StatusBadRequest, nil), err
+	}
 
-	*/
+	s.logger.Info().Msg("Asset creation and enrichment successful")
+
 	return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetId}), nil
 }
 
