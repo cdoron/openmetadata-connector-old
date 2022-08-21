@@ -77,7 +77,7 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	}
 
 	// now that we know the of the database service, we can determine the asset name in OpenMetadata
-	assetId := dt.ConstructFullAssetId(databaseServiceName, createAssetRequest)
+	assetId := dt.TableFQN(databaseServiceName, createAssetRequest)
 
 	// Let's check whether OM already has this asset
 	found, _ = s.findAsset(ctx, c, assetId)
@@ -91,47 +91,66 @@ func (s *OpenMetadataApiService) CreateAsset(ctx context.Context,
 	ingestionPipelineName := "pipeline-" + createAssetRequest.DestinationCatalogID + "." + *createAssetRequest.DestinationAssetID
 	ingestionPipelineNameFull := utils.AppendStrings(databaseServiceName, ingestionPipelineName)
 
-	var ingestionPipelineID string
-	ingestionPipelineID, found = s.findIngestionPipeline(ctx, c, ingestionPipelineNameFull)
+	//var ingestionPipelineID string
+	//ingestionPipelineID, found = s.findIngestionPipeline(ctx, c, ingestionPipelineNameFull)
+	_, found = s.findIngestionPipeline(ctx, c, ingestionPipelineNameFull)
 
 	if !found {
 		// Let us create an ingestion pipeline
 		s.logger.Info().Msg("Ingestion Pipeline not found. Creating.")
-		ingestionPipelineID, err = s.createIngestionPipeline(ctx, c, databaseServiceId, ingestionPipelineName)
+		//ingestionPipelineID, err = s.createIngestionPipeline(ctx, c, databaseServiceId, ingestionPipelineName)
+		_, err = s.createIngestionPipeline(ctx, c, databaseServiceId, ingestionPipelineName)
 	}
 
-	s.logger.Info().Msg("About to deploy and run ingestion Pipeline.")
-	// Let us deploy and run the ingestion pipeline
-	err = s.deployAndRunIngestionPipeline(ctx, c, ingestionPipelineID)
+	/*
+		s.logger.Info().Msg("About to deploy and run ingestion Pipeline.")
+		// Let us deploy and run the ingestion pipeline
+		err = s.deployAndRunIngestionPipeline(ctx, c, ingestionPipelineID)
+		if err != nil {
+			return api.Response(http.StatusBadRequest, nil), err
+		}
+
+			// We just triggered a run of the ingestion pipeline.
+			// Now we need to wait until the asset is discovered
+			s.logger.Info().Msg("Waiting for asset to be discovered")
+			success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetId)
+
+			if !success {
+				return api.Response(http.StatusBadRequest, nil), errors.New("Could not find table " + assetId)
+			}
+	*/
+
+	databaseId, err := s.findOrCreateDatabase(ctx, c, databaseServiceId,
+		dt.DatabaseFQN(databaseServiceName, createAssetRequest),
+		dt.DatabaseName(createAssetRequest))
 	if err != nil {
 		return api.Response(http.StatusBadRequest, nil), err
 	}
 
-	// We just triggered a run of the ingestion pipeline.
-	// Now we need to wait until the asset is discovered
-	s.logger.Info().Msg("Waiting for asset to be discovered")
-	success, table := s.waitUntilAssetIsDiscovered(ctx, c, assetId)
+	databaseSchemaId, _ := s.findOrCreateDatabaseSchema(ctx, c, databaseId,
+		dt.DatabaseSchemaFQN(databaseServiceName, createAssetRequest),
+		dt.DatabaseSchemaName(createAssetRequest))
+	s.createTable(ctx, c, databaseSchemaId, dt.TableName(createAssetRequest))
 
-	if !success {
-		return api.Response(http.StatusBadRequest, nil), errors.New("Could not find table " + assetId)
-	}
+	/*
+		s.logger.Info().Msg("Enriching asset with additional information (e.g. tags)")
+		// Now that OM is aware of the asset, we need to enrich it --
+		// add tags to asset and to columns, and populate the custom properties
+		err = s.enrichAsset(ctx, table, c,
+			createAssetRequest.Credentials, createAssetRequest.ResourceMetadata.Geography,
+			createAssetRequest.ResourceMetadata.Name, createAssetRequest.ResourceMetadata.Owner,
+			createAssetRequest.Details.DataFormat,
+			createAssetRequest.ResourceMetadata.Tags,
+			createAssetRequest.ResourceMetadata.Columns, nil, connectionType)
 
-	s.logger.Info().Msg("Enriching asset with additional information (e.g. tags)")
-	// Now that OM is aware of the asset, we need to enrich it --
-	// add tags to asset and to columns, and populate the custom properties
-	err = s.enrichAsset(ctx, table, c,
-		createAssetRequest.Credentials, createAssetRequest.ResourceMetadata.Geography,
-		createAssetRequest.ResourceMetadata.Name, createAssetRequest.ResourceMetadata.Owner,
-		createAssetRequest.Details.DataFormat,
-		createAssetRequest.ResourceMetadata.Tags,
-		createAssetRequest.ResourceMetadata.Columns, nil, connectionType)
+		if err != nil {
+			s.logger.Error().Msg("Asset enrichment failed")
+			return api.Response(http.StatusBadRequest, nil), err
+		}
 
-	if err != nil {
-		s.logger.Error().Msg("Asset enrichment failed")
-		return api.Response(http.StatusBadRequest, nil), err
-	}
+		s.logger.Info().Msg("Asset creation and enrichment successful")
 
-	s.logger.Info().Msg("Asset creation and enrichment successful")
+	*/
 	return api.Response(http.StatusCreated, api.CreateAssetResponse{AssetID: assetId}), nil
 }
 

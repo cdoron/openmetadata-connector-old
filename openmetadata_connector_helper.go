@@ -366,6 +366,60 @@ func (s *OpenMetadataApiService) deployAndRunIngestionPipeline(ctx context.Conte
 	return nil
 }
 
+func (s *OpenMetadataApiService) findOrCreateDatabase(ctx context.Context,
+	c *client.APIClient,
+	databaseServiceId string,
+	databaseFQN string,
+	databaseName string) (string, error) {
+
+	// we begin by checking whether the database exists
+	database, r, err := c.DatabasesApi.GetDatabaseByFQN(ctx, databaseFQN).Execute()
+	if err == nil {
+		s.logger.Trace().Msg("Database already exists: " + databaseFQN)
+		return *database.Id, nil
+	}
+
+	s.logger.Trace().Msg("Database " + databaseFQN + " does not exist. Creating")
+	database, r, err = c.DatabasesApi.CreateDatabase(ctx).CreateDatabase(*client.NewCreateDatabase(databaseName,
+		*client.NewEntityReference(databaseServiceId, "databaseService"))).Execute()
+	if err != nil {
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `DatabasesApi.CreateDatabase``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		return "", err
+	}
+	return *database.Id, nil
+}
+
+func (s *OpenMetadataApiService) findOrCreateDatabaseSchema(ctx context.Context,
+	c *client.APIClient,
+	databaseId string,
+	databaseSchemaFQN string,
+	databaseSchemaName string) (string, error) {
+	databaseSchema, r, err := c.DatabaseSchemasApi.CreateDBSchema(ctx).CreateDatabaseSchema(
+		*client.NewCreateDatabaseSchema(*client.NewEntityReference(databaseId, "database"), databaseSchemaName)).Execute()
+	if err != nil {
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `DatabaseSchemasApi.CreateDBSchema``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+		return "", err
+	}
+	return *databaseSchema.Id, nil
+}
+
+func (s *OpenMetadataApiService) createTable(ctx context.Context,
+	c *client.APIClient,
+	databaseSchemaId string,
+	tableName string) {
+	columns := []client.Column{*client.NewColumn("STRING", "building_number")}
+	createTable := client.NewCreateTable(columns,
+		*client.NewEntityReference(databaseSchemaId, "databaseSchema"),
+		tableName)
+	_, r, err := c.TablesApi.CreateTable(ctx).CreateTable(*createTable).Execute()
+	if err != nil {
+		s.logger.Trace().Msg(fmt.Sprintf("Error when calling `TablesApi.CreateTable``: %v\n", err))
+		s.logger.Trace().Msg(fmt.Sprintf("Full HTTP response: %v\n", r))
+	}
+}
+
 // enrichAsset is called after asset is created, or during an updateAsset request
 // OM uses the JsonPatch format for updates
 func (s *OpenMetadataApiService) enrichAsset(ctx context.Context, table *client.Table, c *client.APIClient,

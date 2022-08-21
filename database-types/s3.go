@@ -2,6 +2,7 @@ package database_types
 
 import (
 	"reflect"
+	"strings"
 
 	models "github.com/fybrik/datacatalog-go-models"
 	utils "github.com/fybrik/openmetadata-connector/utils"
@@ -102,22 +103,6 @@ func (m *s3) OMTypeName() string {
 	return "Datalake"
 }
 
-func (s *s3) ConstructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest) string {
-	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties["s3"].(map[string]interface{})
-	assetName := *createAssetRequest.DestinationAssetID
-	bucket, found := connectionProperties["bucket"]
-	if found {
-		objectKey, found := connectionProperties["object_key"]
-		if found {
-			return utils.AppendStrings(serviceName+".default."+bucket.(string), objectKey.(string))
-		} else {
-			return utils.AppendStrings(serviceName+".default."+bucket.(string), assetName)
-		}
-	} else {
-		return serviceName + ".default." + assetName
-	}
-}
-
 func (s *s3) compareConfigSource(fromService map[string]interface{}, fromRequest map[string]interface{}) bool {
 	// ignore some fields, such as 'aws_token' which would appear only serviceSecurityConfig
 	serviceSecurityConfig := fromService["securityConfig"].(map[string]interface{})
@@ -143,4 +128,49 @@ func (s *s3) CompareServiceConfigurations(requestConfig map[string]interface{}, 
 		}
 	}
 	return true
+}
+func (s *s3) DatabaseName(createAssetRequest models.CreateAssetRequest) string {
+	return "default"
+}
+
+func (s *s3) DatabaseFQN(serviceName string, createAssetRequest models.CreateAssetRequest) string {
+	return utils.AppendStrings(serviceName, s.DatabaseSchemaName(createAssetRequest))
+}
+
+func (s *s3) DatabaseSchemaName(createAssetRequest models.CreateAssetRequest) string {
+	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties["s3"].(map[string]interface{})
+	bucket, found := connectionProperties["bucket"]
+	if found {
+		return bucket.(string)
+	} else {
+		assetID := *createAssetRequest.DestinationAssetID
+		split := strings.Split(assetID, ".")
+		if len(split) > 1 {
+			return split[len(split)-2]
+		}
+	}
+	s.logger.Warn().Msg("Could not determine the name of the DatabaseSchema (bucket)")
+	return ""
+}
+
+func (s *s3) DatabaseSchemaFQN(serviceName string, createAssetRequest models.CreateAssetRequest) string {
+
+	return utils.AppendStrings(s.DatabaseFQN(serviceName, createAssetRequest),
+		s.DatabaseSchemaName(createAssetRequest))
+}
+
+func (s *s3) TableName(createAssetRequest models.CreateAssetRequest) string {
+	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties["s3"].(map[string]interface{})
+	objectKey, found := connectionProperties["object_key"]
+	if found {
+		return objectKey.(string)
+	} else {
+		split := strings.Split(*createAssetRequest.DestinationAssetID, ".")
+		return split[len(split)-1]
+	}
+}
+
+func (s *s3) TableFQN(serviceName string, createAssetRequest models.CreateAssetRequest) string {
+	return utils.AppendStrings(s.DatabaseSchemaFQN(serviceName, createAssetRequest),
+		s.TableName(createAssetRequest))
 }

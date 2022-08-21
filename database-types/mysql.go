@@ -45,7 +45,7 @@ func (m *mysql) OMTypeName() string {
 	return "Mysql"
 }
 
-func (m *mysql) ConstructFullAssetId(serviceName string, createAssetRequest models.CreateAssetRequest) string {
+func (m *mysql) TableFQN(serviceName string, createAssetRequest models.CreateAssetRequest) string {
 	connectionProperties := createAssetRequest.Details.GetConnection().AdditionalProperties["mysql"].(map[string]interface{})
 	assetName := *createAssetRequest.DestinationAssetID
 	databaseSchema, found := connectionProperties["databaseSchema"]
@@ -63,4 +63,24 @@ func (m *mysql) CompareServiceConfigurations(requestConfig map[string]interface{
 		}
 	}
 	return true
+}
+
+func (m *mysql) DatabaseName(createAssetRequest models.CreateAssetRequest) string {
+	return "default"
+}
+
+func (m *mysql) DatabaseFQN(serviceName string, createAssetRequest models.CreateAssetRequest) string {
+	return ""
+}
+
+func (m *mysql) DatabaseSchemaName(createAssetRequest models.CreateAssetRequest) string {
+	return ""
+}
+
+func (m *mysql) DatabaseSchemaFQN(serviceName string, createAssetRequest models.CreateAssetRequest) string {
+	return ""
+}
+
+func (m *mysql) TableName(createAssetRequest models.CreateAssetRequest) string {
+	return ""
 }
