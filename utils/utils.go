@@ -3,6 +3,9 @@ package utils
 import (
 	"math/rand"
 	"strings"
+
+	client "github.com/fybrik/datacatalog-go-client"
+	models "github.com/fybrik/datacatalog-go-models"
 )
 
 func AppendStrings(a string, b string) string {
@@ -41,4 +44,14 @@ func RandStringBytes(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+
+func ExtractColumns(resourceColumns []models.ResourceColumn) []client.Column {
+	var ret []client.Column
+	for _, rc := range resourceColumns {
+		column := *client.NewColumn("STRING", rc.Name)
+		column.SetDataLength(0)
+		ret = append(ret, column)
+	}
+	return ret
 }
